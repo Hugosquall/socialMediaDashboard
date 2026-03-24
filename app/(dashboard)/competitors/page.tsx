@@ -16,6 +16,7 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
+  CheckCircle2,
   Search,
   Trash2,
   RefreshCw,
@@ -33,6 +34,7 @@ import type { Tables } from "@/lib/database.types"
 type Platform = "instagram" | "tiktok" | "twitter" | "youtube"
 type SortField = "name" | "totalFollowers" | "avgEngagement" | "totalPostsPerWeek" | "lastPost"
 type SortDir = "asc" | "desc"
+type FeedbackKind = "error" | "success"
 
 interface SocialAccount {
   platform: Platform
@@ -52,6 +54,11 @@ interface Competitor {
   name: string
   color: string
   accounts: SocialAccount[]
+}
+
+interface ActionFeedback {
+  kind: FeedbackKind
+  message: string
 }
 
 type CompetitorRow = Tables<"competitors">
@@ -147,6 +154,23 @@ function PlatformBadge({ platform }: { platform: Platform }) {
       <PlatformSVG platform={platform} size={9} />
       <span className="hidden sm:inline">{cfg.label}</span>
     </span>
+  )
+}
+
+function FeedbackBanner({ feedback }: { feedback: ActionFeedback }) {
+  const isError = feedback.kind === "error"
+
+  return (
+    <div
+      className={`flex items-start gap-2 rounded-lg border px-4 py-3 text-sm ${
+        isError
+          ? "border-red-500/30 bg-red-500/10 text-red-200"
+          : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+      }`}
+    >
+      {isError ? <AlertTriangle size={14} className="mt-0.5 shrink-0" /> : <CheckCircle2 size={14} className="mt-0.5 shrink-0" />}
+      <p>{feedback.message}</p>
+    </div>
   )
 }
 
@@ -343,18 +367,21 @@ const COLORS = [
 function AddCompetitorModal({
   onAdd,
   onClose,
+  feedback,
 }: {
-  onAdd: (c: Competitor) => void
+  onAdd: (c: Competitor) => Promise<void>
   onClose: () => void
+  feedback: ActionFeedback | null
 }) {
   const [name, setName] = useState("")
   const [handles, setHandles] = useState<Partial<Record<Platform, string>>>({})
   const [colorIdx, setColorIdx] = useState(0)
   const [instagramFollowers, setInstagramFollowers] = useState("")
   const [instagramEngagement, setInstagramEngagement] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const platforms: Platform[] = ["instagram", "tiktok", "twitter", "youtube"]
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
     const filledPlatforms = platforms.filter((p) => handles[p]?.trim())
@@ -374,8 +401,15 @@ function AddCompetitorModal({
       )
     })
 
-    onAdd({ id: Date.now().toString(), name: name.trim(), color: COLORS[colorIdx], accounts })
-    onClose()
+    setIsSubmitting(true)
+    try {
+      await onAdd({ id: Date.now().toString(), name: name.trim(), color: COLORS[colorIdx], accounts })
+      onClose()
+    } catch {
+      // O erro já é exibido no banner da página/modal.
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -394,6 +428,10 @@ function AddCompetitorModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 p-6">
+          {feedback && (
+            <FeedbackBanner feedback={feedback} />
+          )}
+
           <div>
             <label className="mb-1.5 block text-xs font-medium text-[var(--muted-foreground)]">
               Nome do concorrente *
@@ -485,13 +523,14 @@ function AddCompetitorModal({
             <Button
               type="button"
               onClick={onClose}
+              disabled={isSubmitting}
               className="flex-1 bg-[var(--secondary)] text-[var(--foreground)] hover:bg-[var(--border)]"
             >
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1">
-              <Plus size={14} />
-              Adicionar
+            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              {isSubmitting ? "Salvando..." : "Adicionar"}
             </Button>
           </div>
         </form>
@@ -567,8 +606,18 @@ export default function CompetitorsPage() {
   const [search, setSearch]           = useState("")
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all")
   const [expanded, setExpanded]       = useState<Set<string>>(new Set())
+  const [feedback, setFeedback]       = useState<ActionFeedback | null>(null)
 
   const supabase = createClient()
+
+  useEffect(() => {
+    if (!feedback) return
+    const timeout = window.setTimeout(() => {
+      setFeedback(null)
+    }, 4500)
+
+    return () => window.clearTimeout(timeout)
+  }, [feedback])
 
   const loadCompetitors = useCallback(async () => {
     setLoading(true)
@@ -676,10 +725,18 @@ export default function CompetitorsPage() {
   }
 
   async function handleAddCompetitor(c: Competitor) {
+    if (!userId) {
+      setFeedback({
+        kind: "error",
+        message: "Não foi possível salvar o concorrente agora. Usuário não autenticado.",
+      })
+      throw new Error("Usuário não autenticado")
+    }
+
     // Monta handles a partir das accounts
     const byPlatform = Object.fromEntries(c.accounts.map((a) => [a.platform, a.handle]))
 
-    if (userId) {
+    try {
       const { data, error } = await supabase.from("competitors").insert({
         user_id:          userId,
         name:             c.name,
@@ -692,26 +749,62 @@ export default function CompetitorsPage() {
         is_active:        true,
       }).select().single()
 
-      if (!error && data) {
-        // Usa o ID real do banco
-        setCompetitors((prev) => [{ ...c, id: data.id }, ...prev])
-        return
+      if (error || !data) {
+        const message = error?.message ?? "Não foi possível persistir o concorrente no banco."
+        setFeedback({ kind: "error", message })
+        throw new Error(message)
       }
-    }
 
-    // Fallback: adiciona localmente sem persistir
-    setCompetitors((prev) => [c, ...prev])
+      // Usa o ID real do banco
+      setCompetitors((prev) => [{ ...c, id: data.id }, ...prev])
+      setFeedback({
+        kind: "success",
+        message: "Concorrente adicionado e salvo com sucesso.",
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível persistir o concorrente no banco."
+      setFeedback({ kind: "error", message })
+      throw error
+    }
   }
 
   async function removeCompetitor(id: string) {
-    if (userId) {
-      await supabase.from("competitors").update({ is_active: false }).eq("id", id)
+    if (!userId) {
+      setFeedback({
+        kind: "error",
+        message: "Não foi possível remover o concorrente agora. Usuário não autenticado.",
+      })
+      return
     }
+
+    const { error } = await supabase
+      .from("competitors")
+      .update({ is_active: false })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id")
+      .single()
+
+    if (error) {
+      setFeedback({
+        kind: "error",
+        message: error.message ?? "Não foi possível remover o concorrente no banco.",
+      })
+      return
+    }
+
     setCompetitors((prev) => prev.filter((c) => c.id !== id))
     setExpanded((prev) => {
       const next = new Set(prev)
       next.delete(id)
       return next
+    })
+    setFeedback({
+      kind: "success",
+      message: "Concorrente removido com sucesso.",
     })
   }
 
@@ -744,6 +837,8 @@ export default function CompetitorsPage() {
 
   return (
     <div className="space-y-5">
+      {feedback && <FeedbackBanner feedback={feedback} />}
+
       {/* ── Alerts ── */}
       {alerts.length > 0 && (
         <Card className="border-amber-500/30 bg-amber-500/5">
@@ -1160,6 +1255,7 @@ export default function CompetitorsPage() {
         <AddCompetitorModal
           onAdd={handleAddCompetitor}
           onClose={() => setShowModal(false)}
+          feedback={feedback}
         />
       )}
     </div>

@@ -55,7 +55,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 Consulte `INSTAGRAM_SETUP.md` para o passo a passo de criação do app no Meta for Developers.
 
-A chave da Metricool pode ser configurada diretamente na interface em **Configurações → Integrações**.
+A chave da Metricool pode ser configurada diretamente na interface em **Configurações → Integrações** (salva em `user_metadata` do usuário autenticado), com fallback opcional para `METRICOOL_API_KEY` no ambiente.
 
 ## Páginas
 
@@ -64,7 +64,7 @@ A chave da Metricool pode ser configurada diretamente na interface em **Configur
 | `/` | Overview | KPIs gerais + acesso rápido às seções |
 | `/instagram` | Instagram Manager | Posts no Supabase (CRUD real) |
 | `/analytics` | Analytics | Instagram Graph API → Metricool → mock |
-| `/calendar` | Content Calendar | Mock |
+| `/calendar` | Content Calendar | Dados reais de `posts` no Supabase (com filtros e visão mensal) |
 | `/competitors` | Competitor Tracker | Supabase (tabela `competitors`) |
 | `/news` | News Consolidator | RSS feeds reais com fallback mock |
 | `/notifications` | Notificações | Supabase (`notifications`) + seed inicial + health visual |
@@ -79,8 +79,8 @@ A chave da Metricool pode ser configurada diretamente na interface em **Configur
 | `GET /api/auth/instagram/callback` | GET | Callback OAuth — salva token no Supabase |
 | `GET /api/analytics` | GET | Dados de analytics (Instagram → Metricool → mock) |
 | `GET /api/analytics/sources` | GET | Verifica quais fontes estão configuradas |
-| `POST /api/analytics/sources` | POST | Salva Metricool API key no `.env.local` |
-| `DELETE /api/analytics/sources` | DELETE | Remove Metricool API key |
+| `POST /api/analytics/sources` | POST | Salva Metricool API key no `user_metadata` do usuário autenticado |
+| `DELETE /api/analytics/sources` | DELETE | Remove Metricool API key do `user_metadata` do usuário autenticado |
 | `GET /api/news` | GET | Busca RSS feeds e retorna artigos normalizados |
 | `GET /api/notifications/health` | GET | Verifica se a tabela `notifications` está pronta para uso |
 | `GET /api/notifications` | GET | Lista notificações persistidas do usuário (não dispensadas) |
@@ -107,9 +107,29 @@ Tabelas principais:
 O Analytics usa uma hierarquia de fontes com fallback automático:
 
 1. **Instagram Graph API** — se o usuário tiver conectado o Instagram via OAuth (token salvo no Supabase). Retorna impressões, alcance, crescimento de seguidores e top posts reais.
-2. **Metricool** — se `METRICOOL_API_KEY` estiver configurada. Agrega dados de Instagram, Facebook e Twitter.
+2. **Metricool** — se houver chave no `user_metadata` do usuário autenticado (fallback: `METRICOOL_API_KEY` no ambiente). Agrega dados de Instagram, Facebook e Twitter.
 3. **Dados mockados** — fallback sempre disponível em desenvolvimento. Um banner laranja na página indica quando o mock está ativo.
+
+### Calendário de conteúdo
+
+O calendário usa dados reais da tabela `posts` do usuário autenticado, com priorização de data (`scheduled_at`, `published_at`, `created_at`), filtros por plataforma e visão mensal.
 
 ## Autenticação
 
 Toda a autenticação é feita via Supabase Auth (email + senha). O `proxy.ts` protege todas as rotas exceto `/login` e `/api/auth/instagram/callback`, redirecionando para `/login` se não autenticado.
+
+## Testes
+
+```bash
+npm run lint
+npm run e2e
+```
+
+O fluxo E2E principal cobre redirecionamento de rota protegida e renderização da tela de login. Existe também um cenário autenticado opcional, que só roda quando as credenciais forem fornecidas por env:
+
+```bash
+E2E_AUTH_EMAIL=seu-email@teste.com
+E2E_AUTH_PASSWORD=sua-senha-segura
+```
+
+Se essas variáveis não existirem, o cenário autenticado é pulado automaticamente sem quebrar a suíte.

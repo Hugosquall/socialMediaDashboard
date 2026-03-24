@@ -1,47 +1,47 @@
 /**
  * /api/analytics/sources
  *
- * GET  → retorna quais fontes estão disponíveis (instagram, metricool)
- * POST → salva/atualiza a METRICOOL_API_KEY no .env.local
- * DELETE → remove a METRICOOL_API_KEY do .env.local
- *
- * Nota: escrever no .env.local só funciona em ambiente de desenvolvimento local.
- * Em produção (Vercel, etc.) as env vars são gerenciadas pelo painel do host.
+ * GET    → retorna quais fontes estão disponíveis (instagram, metricool)
+ * POST   → salva a chave do Metricool no user_metadata do usuário autenticado
+ * DELETE → remove a chave do Metricool do user_metadata do usuário autenticado
  */
 
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import * as fs from "fs"
-import * as path from "path"
 
-const ENV_PATH = path.join(process.cwd(), ".env.local")
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function readEnvFile(): string {
-  return fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, "utf-8") : ""
+type MetricoolSourcesResponse = {
+  instagram: boolean
+  metricool: boolean
 }
 
-function setEnvVar(content: string, key: string, value: string): string {
-  const regex = new RegExp(`^${key}=.*$`, "m")
-  if (regex.test(content)) {
-    return content.replace(regex, `${key}=${value}`)
+type MetricoolSourceBody = {
+  metricoolApiKey?: string | null
+}
+
+function getMetricoolApiKey(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") {
+    return null
   }
-  return content.trimEnd() + `\n${key}=${value}\n`
-}
 
-function removeEnvVar(content: string, key: string): string {
-  return content.replace(new RegExp(`^${key}=.*\n?`, "m"), "")
+  const value = (metadata as Record<string, unknown>).metricool_api_key
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const trimmedValue = value.trim()
+  return trimmedValue.length > 0 ? trimmedValue : null
 }
 
 // ─── GET — verifica fontes disponíveis ────────────────────────────────────────
 
-export async function GET() {
-  // Verifica Instagram token no Supabase
-  let instagram = false
+export async function GET(): Promise<
+  NextResponse<MetricoolSourcesResponse | { error: string }>
+> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
+
+    let instagram = false
     if (user) {
       const { data } = await supabase
         .from("instagram_tokens")
@@ -50,72 +50,102 @@ export async function GET() {
         .single()
       instagram = !!data
     }
-  } catch { /* silencioso */ }
 
-  // Verifica Metricool via env
-  const metricool = !!(process.env.METRICOOL_API_KEY?.trim())
+    const userMetricoolApiKey = getMetricoolApiKey(user?.user_metadata)
+    const metricool = userMetricoolApiKey !== null || !!process.env.METRICOOL_API_KEY?.trim()
 
-  return NextResponse.json({ instagram, metricool })
+    return NextResponse.json({ instagram, metricool })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha ao carregar fontes"
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 // ─── POST — salva Metricool API key ──────────────────────────────────────────
 
-export async function POST(request: NextRequest) {
-  let body: { metricoolApiKey?: string }
+export async function POST(
+  request: NextRequest
+): Promise<NextResponse<{ ok: boolean } | { error: string }>> {
   try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 })
-  }
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
 
-  const key = body.metricoolApiKey?.trim()
-  if (!key) {
-    return NextResponse.json({ error: "Chave inválida" }, { status: 400 })
-  }
-
-  // Valida a chave chamando a Metricool API antes de salvar
-  try {
-    const testRes = await fetch("https://app.metricool.com/api/v2/user", {
-      headers: { Authorization: `Bearer ${key}` },
-    })
-    if (!testRes.ok && testRes.status === 401) {
-      return NextResponse.json(
-        { error: "Chave de API inválida — verifique no painel da Metricool" },
-        { status: 401 }
-      )
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 401 })
     }
-    // Qualquer outro status != 401 é aceito (pode ser 404 ou endpoint diferente)
-  } catch {
-    // Não bloqueamos se a validação falhar por timeout/rede — salvamos mesmo assim
-  }
 
-  // Escreve no .env.local
-  try {
-    const updated = setEnvVar(readEnvFile(), "METRICOOL_API_KEY", key)
-    fs.writeFileSync(ENV_PATH, updated, "utf-8")
-    // Atualiza process.env para a sessão atual sem precisar reiniciar
-    process.env.METRICOOL_API_KEY = key
+    if (!user) {
+      return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 })
+    }
+
+    let body: MetricoolSourceBody
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: "JSON inválido" }, { status: 400 })
+    }
+
+    const key = typeof body.metricoolApiKey === "string" ? body.metricoolApiKey.trim() : ""
+    if (!key) {
+      return NextResponse.json({ error: "Chave inválida" }, { status: 400 })
+    }
+
+    try {
+      const testRes = await fetch("https://app.metricool.com/api/v2/user", {
+        headers: { Authorization: `Bearer ${key}` },
+      })
+
+      if (testRes.status === 401) {
+        return NextResponse.json(
+          { error: "Chave de API inválida — verifique no painel da Metricool" },
+          { status: 401 }
+        )
+      }
+    } catch {
+      // Mantém a gravação quando a validação não consegue completar por rede/time-out.
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: { metricool_api_key: key },
+    })
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
     return NextResponse.json({ ok: true })
-  } catch (err) {
-    return NextResponse.json(
-      { error: `Erro ao salvar no .env.local: ${err}` },
-      { status: 500 }
-    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha ao salvar chave do Metricool"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
 // ─── DELETE — remove Metricool API key ───────────────────────────────────────
 
-export async function DELETE() {
+export async function DELETE(): Promise<NextResponse<{ ok: boolean } | { error: string }>> {
   try {
-    const updated = removeEnvVar(readEnvFile(), "METRICOOL_API_KEY")
-    fs.writeFileSync(ENV_PATH, updated, "utf-8")
-    process.env.METRICOOL_API_KEY = ""
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
+
+    if (!user) {
+      return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 })
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: { metricool_api_key: null },
+    })
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
     return NextResponse.json({ ok: true })
-  } catch (err) {
-    return NextResponse.json(
-      { error: `Erro ao remover do .env.local: ${err}` },
-      { status: 500 }
-    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha ao remover chave do Metricool"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

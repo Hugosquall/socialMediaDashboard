@@ -4,7 +4,7 @@
  *
  * Estratégia de fonte de dados (em ordem de prioridade):
  *  1. Instagram Graph API — se houver access_token salvo no Supabase para o usuário
- *  2. Metricool API       — se METRICOOL_API_KEY estiver configurado no .env.local
+ *  2. Metricool API       — se houver chave no user_metadata do usuário ou no env global
  *  3. Dados mockados      — fallback sempre disponível (não quebra nada em dev)
  *
  * O campo `source` na resposta indica qual fonte foi usada.
@@ -63,6 +63,20 @@ interface InsightMetricValue {
 interface InsightMetric {
   name: string
   values?: InsightMetricValue[]
+}
+
+function getMetricoolApiKey(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") {
+    return null
+  }
+
+  const value = (metadata as Record<string, unknown>).metricool_api_key
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const trimmedValue = value.trim()
+  return trimmedValue.length > 0 ? trimmedValue : null
 }
 
 // ─── Mock data (fallback) ─────────────────────────────────────────────────────
@@ -336,15 +350,18 @@ export async function GET(request: NextRequest) {
     return d
   })()
 
-  // ── Verifica fontes disponíveis ───────────────────────────────────────────
-  const metricoolApiKey = process.env.METRICOOL_API_KEY ?? null
-
   let instagramToken:  string | null = null
   let instagramUserId: string | null = null
+  let metricoolApiKey: string | null = null
 
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error("[Analytics] Falha ao carregar usuário:", error)
+    }
+
     if (user) {
       const { data: tokenRow } = await supabase
         .from("instagram_tokens")
@@ -355,9 +372,15 @@ export async function GET(request: NextRequest) {
         instagramToken  = tokenRow.access_token
         instagramUserId = tokenRow.instagram_user_id
       }
+
+      metricoolApiKey = getMetricoolApiKey(user.user_metadata)
     }
   } catch {
     // Falha de autenticação — segue para fallback
+  }
+
+  if (!metricoolApiKey) {
+    metricoolApiKey = process.env.METRICOOL_API_KEY?.trim() ?? null
   }
 
   const sourcesAvailable = {

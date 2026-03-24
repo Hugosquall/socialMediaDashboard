@@ -35,10 +35,10 @@ dashboard-sabrina/
 │   │   ├── page.tsx              # Overview (home)
 │   │   ├── instagram/page.tsx    # Instagram Manager — CRUD real no Supabase
 │   │   ├── analytics/page.tsx    # Analytics — consome /api/analytics
-│   │   ├── calendar/page.tsx     # Content Calendar — mock
+│   │   ├── calendar/page.tsx     # Content Calendar — dados reais de posts (Supabase)
 │   │   ├── competitors/page.tsx  # Competitor Tracker — Supabase
 │   │   ├── news/page.tsx         # News Consolidator — consome /api/news
-│   │   ├── notifications/page.tsx# Notificações — mock (UI funcional)
+│   │   ├── notifications/page.tsx# Notificações — persistidas no Supabase com health/seed
 │   │   └── settings/page.tsx     # Configurações — perfil Supabase + integrações
 │   ├── api/
 │   │   ├── auth/instagram/
@@ -70,7 +70,7 @@ dashboard-sabrina/
 │   │   └── server.ts             # createClient() para Server Components e API Routes
 │   └── utils.ts                  # cn() helper para merge de classes Tailwind
 │
-├── middleware.ts                  # Protege rotas — redireciona para /login se não autenticado
+├── proxy.ts                       # Protege rotas — renova sessão e redireciona para /login se não autenticado
 ├── .env.local                     # Variáveis de ambiente (ver seção abaixo)
 ├── CLAUDE.md                      # Este arquivo
 ├── README.md                      # Documentação para desenvolvedores
@@ -91,6 +91,8 @@ INSTAGRAM_APP_SECRET=
 METRICOOL_API_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
+
+`METRICOOL_API_KEY` é fallback de ambiente. A prioridade atual de leitura é a chave salva no `user_metadata` do usuário autenticado, com fallback para a env global quando necessário.
 
 ---
 
@@ -146,18 +148,18 @@ Tipos em `lib/database.types.ts`. Usar `Tables<"nome_da_tabela">` para tipar row
 A página `/analytics` consome `GET /api/analytics?from=YYYY-MM-DD&to=YYYY-MM-DD`. A route segue esta hierarquia com fallback automático:
 
 1. **Instagram Graph API** — se `instagram_tokens` existir para o usuário no Supabase. Busca via `graph.instagram.com/v19.0`.
-2. **Metricool** — se `METRICOOL_API_KEY` estiver configurada. Usa `app.metricool.com/api/v2`. Agrega Facebook e Twitter além do Instagram.
+2. **Metricool** — se houver chave no `user_metadata` do usuário autenticado (fallback para `METRICOOL_API_KEY`). Usa `app.metricool.com/api/v2`. Agrega Facebook e Twitter além do Instagram.
 3. **Dados mockados** — fallback sempre disponível. Usa gerador determinístico (seed baseado na data) para evitar hydration mismatch.
 
 A resposta inclui `source` ("instagram" | "metricool" | "mock") e `sourcesAvailable`. A página exibe um banner colorido indicando a fonte ativa, com link para Configurações quando em modo mock.
 
-A route `/api/analytics/sources` (GET/POST/DELETE) gerencia as fontes: verifica disponibilidade, salva/remove a Metricool API key no `.env.local` em runtime.
+A route `/api/analytics/sources` (GET/POST/DELETE) gerencia as fontes: verifica disponibilidade e salva/remove a Metricool API key no `user_metadata` do usuário autenticado.
 
 ---
 
 ## Autenticação
 
-Supabase Auth com email + senha. `middleware.ts` protege todas as rotas exceto `/login` e `/api/auth/instagram/callback`.
+Supabase Auth com email + senha. `proxy.ts` protege todas as rotas exceto `/login` e `/api/auth/instagram/callback`.
 
 ### OAuth do Instagram
 1. `GET /api/auth/instagram` → redireciona para `api.instagram.com/oauth/authorize`
@@ -170,7 +172,7 @@ Supabase Auth com email + senha. `middleware.ts` protege todas as rotas exceto `
 
 - ✅ Autenticação completa (login, cadastro, sessão persistida, proteção de rotas)
 - ✅ Instagram Manager — CRUD de posts no Supabase (criar, listar por status, deletar)
-- ✅ OAuth do Instagram — fluxo completo implementado, aguarda credenciais Meta no `.env.local`
+- ✅ OAuth do Instagram — fluxo completo implementado, depende de credenciais Meta no `.env.local`
 - ✅ News Consolidator — RSS feeds reais (ArchDaily, Dezeen, Archinect) com fallback mock
 - ✅ Analytics — sistema dual data source (Instagram Graph API + Metricool + mock)
 - ✅ Perfil de usuário — salvo e carregado do Supabase
@@ -184,7 +186,7 @@ Supabase Auth com email + senha. `middleware.ts` protege todas as rotas exceto `
 |---|---|---|
 | KPIs de seguidores no Instagram Manager | `instagram/page.tsx` — valor fixo "48.2K" | Aguarda Instagram Graph API conectado |
 | Competitor Tracker | `competitors/page.tsx` | UI completa, dados mockados inline (tabela `competitors` existe no Supabase) |
-| Content Calendar | `calendar/page.tsx` | UI completa, dados mockados inline |
+| Content Calendar | `calendar/page.tsx` | Dados reais da tabela `posts`, com filtros de plataforma e calendário mensal |
 | Notificações | `notifications/page.tsx` | UI funcional (marcar lida, filtrar, dispensar), sem fonte de dados real |
 | Preferências de notificações no app | `notifications/page.tsx` e `settings/page.tsx` → `NotificationsTab` | Persistem em `user_metadata`, não em coluna dedicada |
 | Exportar posts (JSON) / analytics (CSV) | `settings/page.tsx` → `DataTab` | Já implementado e conectado às rotas `/api/export/posts` e `/api/export/analytics` |
@@ -193,19 +195,12 @@ Supabase Auth com email + senha. `middleware.ts` protege todas as rotas exceto `
 
 ---
 
-## Tarefas Pendentes
+## Estado atual e dependências
 
-### Alta prioridade (desbloqueiam dados reais)
-- [ ] **Conectar Instagram Graph API** — preencher `INSTAGRAM_APP_ID` e `INSTAGRAM_APP_SECRET` no `.env.local` seguindo `INSTAGRAM_SETUP.md`. Desbloqueia dados reais no Analytics e KPIs no Instagram Manager.
-- [ ] **Conectar Metricool** — adicionar API key em Configurações → Integrações. Totalmente implementado no código, só falta a key.
-
-### Média prioridade
-- [ ] **Competitor Tracker com dados reais** — conectar com a tabela `competitors` do Supabase (estrutura já existe).
-
-### Baixa prioridade (melhorias técnicas)
-- [ ] **Renomear middleware** — Next.js 16 deprecou `middleware.ts` em favor de `proxy.ts`. Só renomear o arquivo.
-- [ ] **Testes E2E** — usar a skill `qa-playwright` disponível no ambiente. Cobrir: login, criar post, conectar Instagram.
-- [ ] **Deploy** — configurar variáveis no painel do host (Vercel) e ajustar `NEXT_PUBLIC_SITE_URL`.
+- **Instagram Graph API**: já integrado no código. Para sair do fallback mock, o ambiente precisa ter `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` e um token válido salvo no Supabase para o usuário autenticado.
+- **Metricool**: já integrado no código. A chave é configurada por usuário no `user_metadata`, com fallback opcional para env global.
+- **Content Calendar**: usa dados reais da tabela `posts` no Supabase.
+- **Competitor Tracker**: ainda usa dados mockados inline; essa é a principal funcionalidade que segue como evolução futura.
 
 ---
 

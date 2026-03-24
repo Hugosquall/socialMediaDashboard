@@ -1,0 +1,107 @@
+# Dashboard Sabrina
+
+Dashboard privado de gestão de redes sociais — Instagram Manager, Analytics, Calendário de Conteúdo, Monitoramento de Concorrentes e News Consolidator.
+
+## Stack
+
+| Tecnologia | Versão | Uso |
+|---|---|---|
+| Next.js | 16 (App Router) | Framework principal |
+| TypeScript | 5.x | Tipagem estática |
+| Tailwind CSS | v4 | Estilização (config inline no CSS) |
+| Supabase | — | Auth (email/senha) + banco de dados |
+| Recharts | 3.x | Gráficos interativos no Analytics |
+| shadcn/ui (manual) | — | Componentes base |
+| Radix UI | — | Primitivas acessíveis |
+| lucide-react | — | Ícones |
+| rss-parser | — | Feed de notícias (ArchDaily, Dezeen, Archinect) |
+
+## Rodando localmente
+
+```bash
+npm install
+npm run dev
+```
+
+Acesse `http://localhost:3000`. O app redireciona para `/login` se não autenticado.
+
+## Variáveis de ambiente
+
+Copie `.env.local` e preencha os valores:
+
+```env
+# Supabase (obrigatório)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+
+# Instagram Graph API (opcional — habilita dados reais no Analytics e Instagram Manager)
+INSTAGRAM_APP_ID=
+INSTAGRAM_APP_SECRET=
+
+# Metricool (opcional — habilita métricas de Facebook e Twitter no Analytics)
+METRICOOL_API_KEY=
+
+# URL do site (usado no redirect OAuth)
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+Consulte `INSTAGRAM_SETUP.md` para o passo a passo de criação do app no Meta for Developers.
+
+A chave da Metricool pode ser configurada diretamente na interface em **Configurações → Integrações**.
+
+## Páginas
+
+| Rota | Seção | Dados |
+|---|---|---|
+| `/` | Overview | KPIs gerais + acesso rápido às seções |
+| `/instagram` | Instagram Manager | Posts no Supabase (CRUD real) |
+| `/analytics` | Analytics | Instagram Graph API → Metricool → mock |
+| `/calendar` | Content Calendar | Mock |
+| `/competitors` | Competitor Tracker | Supabase (tabela `competitors`) |
+| `/news` | News Consolidator | RSS feeds reais com fallback mock |
+| `/notifications` | Notificações | Supabase (`notifications`) + seed inicial + health visual |
+| `/settings` | Configurações | Perfil e integrações no Supabase |
+| `/login` | Login / Cadastro | Supabase Auth |
+
+## API Routes
+
+| Endpoint | Método | Descrição |
+|---|---|---|
+| `GET /api/auth/instagram` | GET | Inicia OAuth do Instagram |
+| `GET /api/auth/instagram/callback` | GET | Callback OAuth — salva token no Supabase |
+| `GET /api/analytics` | GET | Dados de analytics (Instagram → Metricool → mock) |
+| `GET /api/analytics/sources` | GET | Verifica quais fontes estão configuradas |
+| `POST /api/analytics/sources` | POST | Salva Metricool API key no `.env.local` |
+| `DELETE /api/analytics/sources` | DELETE | Remove Metricool API key |
+| `GET /api/news` | GET | Busca RSS feeds e retorna artigos normalizados |
+| `GET /api/notifications/health` | GET | Verifica se a tabela `notifications` está pronta para uso |
+| `GET /api/notifications` | GET | Lista notificações persistidas do usuário (não dispensadas) |
+| `POST /api/notifications` | POST | Seed inicial idempotente de notificações |
+| `PATCH /api/notifications/state` | PATCH | Atualiza estado (marcar lida, marcar todas, dispensar) |
+
+## Banco de dados (Supabase)
+
+Tabelas principais:
+
+- **`profiles`** — nome, handle, bio, avatar do usuário
+- **`posts`** — posts do Instagram Manager (caption, tipo, status, datas, métricas)
+- **`instagram_tokens`** — access token OAuth do Instagram por usuário
+- **`competitors`** — concorrentes monitorados
+- **`notifications`** — central de notificações persistida por usuário
+
+## Runbooks
+
+- [Runbook de notificações](docs/NOTIFICATIONS_RUNBOOK.md) — como aplicar a migration manualmente no SQL Editor do Supabase, validar a tabela e fazer rollback se necessário.
+  O fluxo inclui a checagem de `GET /api/notifications/health` e o callout visual na tela quando a tabela ainda não existe.
+
+## Estratégia de dados do Analytics
+
+O Analytics usa uma hierarquia de fontes com fallback automático:
+
+1. **Instagram Graph API** — se o usuário tiver conectado o Instagram via OAuth (token salvo no Supabase). Retorna impressões, alcance, crescimento de seguidores e top posts reais.
+2. **Metricool** — se `METRICOOL_API_KEY` estiver configurada. Agrega dados de Instagram, Facebook e Twitter.
+3. **Dados mockados** — fallback sempre disponível em desenvolvimento. Um banner laranja na página indica quando o mock está ativo.
+
+## Autenticação
+
+Toda a autenticação é feita via Supabase Auth (email + senha). O `proxy.ts` protege todas as rotas exceto `/login` e `/api/auth/instagram/callback`, redirecionando para `/login` se não autenticado.

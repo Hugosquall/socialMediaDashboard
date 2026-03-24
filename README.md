@@ -25,9 +25,17 @@ npm run dev
 
 Acesse `http://localhost:3000`. O app redireciona para `/login` se não autenticado.
 
+## Setup rápido
+
+1. Copie `.env.example` para `.env.local`.
+2. Preencha as variáveis do Supabase.
+3. Configure `NEXT_PUBLIC_SITE_URL` com a URL local ou pública.
+4. Se for usar Instagram ou Metricool, preencha também as credenciais correspondentes.
+5. Rode `npm install` e `npm run dev`.
+
 ## Variáveis de ambiente
 
-Copie `.env.local` e preencha os valores:
+Copie `.env.example` para `.env.local` e preencha os valores:
 
 ```env
 # Supabase (obrigatório)

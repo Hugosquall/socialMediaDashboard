@@ -83,18 +83,12 @@ dashboard-sabrina/
 ## Variáveis de Ambiente (.env.local)
 
 ```env
-# Supabase (obrigatório)
-NEXT_PUBLIC_SUPABASE_URL=https://neeujmoncsgchbfsrpat.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-
-# Instagram Graph API (opcional — desbloqueia dados reais)
-INSTAGRAM_APP_ID=          # App ID do Meta for Developers
-INSTAGRAM_APP_SECRET=      # App Secret do Meta for Developers
-
-# Metricool (opcional — pode ser configurado pela UI em Configurações → Integrações)
+# Copie de .env.example e preencha os valores reais
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+INSTAGRAM_APP_ID=
+INSTAGRAM_APP_SECRET=
 METRICOOL_API_KEY=
-
-# URL do site (usado no redirect OAuth)
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
@@ -192,9 +186,10 @@ Supabase Auth com email + senha. `middleware.ts` protege todas as rotas exceto `
 | Competitor Tracker | `competitors/page.tsx` | UI completa, dados mockados inline (tabela `competitors` existe no Supabase) |
 | Content Calendar | `calendar/page.tsx` | UI completa, dados mockados inline |
 | Notificações | `notifications/page.tsx` | UI funcional (marcar lida, filtrar, dispensar), sem fonte de dados real |
-| Preferências de notificações | `settings/page.tsx` → `NotificationsTab` | Toggles não persistem (sem coluna no Supabase) |
-| Exportar posts (JSON) / analytics (CSV) | `settings/page.tsx` → `DataTab` | Botões existem, sem implementação |
-| Upload de avatar | `settings/page.tsx` → `ProfileTab` | Botão de câmera sem ação (falta Supabase Storage) |
+| Preferências de notificações no app | `notifications/page.tsx` e `settings/page.tsx` → `NotificationsTab` | Persistem em `user_metadata`, não em coluna dedicada |
+| Exportar posts (JSON) / analytics (CSV) | `settings/page.tsx` → `DataTab` | Já implementado e conectado às rotas `/api/export/posts` e `/api/export/analytics` |
+| Upload de avatar | `settings/page.tsx` → `ProfileTab` | Já implementado com Supabase Storage no bucket `avatars` |
+| Sidebar responsiva | `components/layout/dashboard-shell.tsx` e `components/layout/sidebar.tsx` | Já implementada com menu mobile e bloqueio de scroll |
 
 ---
 
@@ -205,10 +200,6 @@ Supabase Auth com email + senha. `middleware.ts` protege todas as rotas exceto `
 - [ ] **Conectar Metricool** — adicionar API key em Configurações → Integrações. Totalmente implementado no código, só falta a key.
 
 ### Média prioridade
-- [ ] **Exportar dados** — implementar `GET /api/export/posts` (JSON) e `GET /api/export/analytics` (CSV). Conectar nos botões em Settings → Dados.
-- [ ] **Persistir preferências de notificações** — criar coluna `notification_prefs` (JSONB) na tabela `profiles` e salvar/carregar no `NotificationsTab`.
-- [ ] **Upload de avatar** — ativar Supabase Storage, criar bucket `avatars`, implementar upload no `ProfileTab`.
-- [ ] **Sidebar responsiva** — adicionar menu hambúrguer para mobile com estado via Context ou Zustand.
 - [ ] **Competitor Tracker com dados reais** — conectar com a tabela `competitors` do Supabase (estrutura já existe).
 
 ### Baixa prioridade (melhorias técnicas)

@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Save,
   RefreshCw,
+  Copy,
   Eye,
   EyeOff,
   Zap,
@@ -66,6 +67,29 @@ function normalizeNotificationPrefs(input: unknown): NotificationPrefs {
     weeklyReport:   typeof source.weeklyReport === "boolean" ? source.weeklyReport : DEFAULT_NOTIFICATION_PREFS.weeklyReport,
     emailDigest:    typeof source.emailDigest === "boolean" ? source.emailDigest : DEFAULT_NOTIFICATION_PREFS.emailDigest,
   }
+}
+
+type ApiTokenState = {
+  hasToken: boolean
+  maskedToken: string | null
+  token: string | null
+}
+
+type TokenFeedback = {
+  kind: "success" | "error"
+  message: string
+} | null
+
+function maskTokenForDisplay(token: string): string {
+  if (token.length <= 8) {
+    return "********"
+  }
+
+  const prefix = token.slice(0, 6)
+  const suffix = token.slice(-4)
+  const middleLength = Math.max(8, token.length - prefix.length - suffix.length)
+
+  return `${prefix}${"*".repeat(middleLength)}${suffix}`
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -833,10 +857,65 @@ function NotificationsTab() {
 // ─── Aba: Dados ───────────────────────────────────────────────────────────────
 
 function DataTab() {
+  const [apiToken, setApiToken] = useState<string | null>(null)
+  const [maskedToken, setMaskedToken] = useState<string | null>(null)
   const [showToken, setShowToken] = useState(false)
+  const [loadingToken, setLoadingToken] = useState(true)
+  const [regeneratingToken, setRegeneratingToken] = useState(false)
+  const [tokenFeedback, setTokenFeedback] = useState<TokenFeedback>(null)
   const [exportingPosts, setExportingPosts] = useState(false)
   const [exportingAnalytics, setExportingAnalytics] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    async function loadApiToken() {
+      setLoadingToken(true)
+      setTokenFeedback(null)
+
+      try {
+        const response = await fetch("/api/settings/api-token")
+        const data = (await response.json()) as unknown
+
+        if (!response.ok) {
+          const message =
+            typeof data === "object" &&
+            data !== null &&
+            "error" in data &&
+            typeof (data as Record<string, unknown>).error === "string"
+              ? (data as Record<string, string>).error
+              : "Falha ao carregar token"
+          throw new Error(message)
+        }
+
+        const tokenState = data as ApiTokenState
+        if (!active) return
+
+        setApiToken(tokenState.token)
+        setMaskedToken(tokenState.maskedToken)
+        setShowToken(false)
+      } catch (error) {
+        if (!active) return
+        setTokenFeedback({
+          kind: "error",
+          message: error instanceof Error ? error.message : "Falha ao carregar token",
+        })
+        setApiToken(null)
+        setMaskedToken(null)
+      } finally {
+        if (active) {
+          setLoadingToken(false)
+        }
+      }
+    }
+
+    loadApiToken()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   function resolveFilename(headerValue: string | null, fallback: string): string {
     if (!headerValue) return fallback
@@ -876,6 +955,67 @@ function DataTab() {
       setLoading(false)
     }
   }
+
+  async function handleRegenerateToken() {
+    setRegeneratingToken(true)
+    setTokenFeedback(null)
+
+    try {
+      const response = await fetch("/api/settings/api-token", {
+        method: "POST",
+      })
+      const data = (await response.json()) as unknown
+
+      if (!response.ok) {
+        const message =
+          typeof data === "object" &&
+          data !== null &&
+          "error" in data &&
+          typeof (data as Record<string, unknown>).error === "string"
+            ? (data as Record<string, string>).error
+            : "Falha ao regenerar token"
+        throw new Error(message)
+      }
+
+      const tokenState = data as ApiTokenState
+      setApiToken(tokenState.token)
+      setMaskedToken(tokenState.maskedToken ?? (tokenState.token ? maskTokenForDisplay(tokenState.token) : null))
+      setShowToken(true)
+      setTokenFeedback({
+        kind: "success",
+        message: "Token regenerado com sucesso.",
+      })
+    } catch (error) {
+      setTokenFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Falha ao regenerar token",
+      })
+    } finally {
+      setRegeneratingToken(false)
+    }
+  }
+
+  async function handleCopyToken() {
+    if (!apiToken) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(apiToken)
+      setTokenFeedback({
+        kind: "success",
+        message: "Token copiado para a área de transferência.",
+      })
+    } catch {
+      setTokenFeedback({
+        kind: "error",
+        message: "Não foi possível copiar o token.",
+      })
+    }
+  }
+
+  const displayedToken = showToken ? apiToken : maskedToken
+  const hasToken = apiToken !== null
 
   return (
     <div className="space-y-4">
@@ -928,27 +1068,67 @@ function DataTab() {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">API Token</CardTitle>
-          <CardDescription>Use para integrar este dashboard com outros sistemas</CardDescription>
+          <CardDescription>Token persistido no Supabase Auth para integrações externas</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 font-mono text-xs text-[var(--muted-foreground)]">
-              {showToken ? "sk-dash-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" : "••••••••••••••••••••••••••••••••••••••••"}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 font-mono text-xs text-[var(--foreground)]">
+              {loadingToken ? (
+                <span className="flex items-center gap-2 text-[var(--muted-foreground)]">
+                  <Loader2 size={12} className="animate-spin" />
+                  Carregando token...
+                </span>
+              ) : displayedToken ? (
+                displayedToken
+              ) : (
+                <span className="text-[var(--muted-foreground)]">Nenhum token gerado ainda</span>
+              )}
             </div>
-            <button
-              onClick={() => setShowToken(!showToken)}
-              className="rounded-lg border border-[var(--border)] p-2 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--secondary)]"
-            >
-              {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <RefreshCw size={13} />
-              Regenerar
-            </Button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowToken((current) => !current)}
+                disabled={!hasToken}
+                className="rounded-lg border border-[var(--border)] p-2 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--secondary)] disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={showToken ? "Ocultar token" : "Revelar token"}
+              >
+                {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleCopyToken}
+                disabled={!hasToken || loadingToken}
+              >
+                <Copy size={13} />
+                Copiar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleRegenerateToken}
+                disabled={regeneratingToken}
+              >
+                <RefreshCw size={13} className={regeneratingToken ? "animate-spin" : ""} />
+                {regeneratingToken ? "Regenerando..." : "Regenerar"}
+              </Button>
+            </div>
           </div>
-          <p className="text-[10px] text-[var(--muted-foreground)]">
-            Nunca compartilhe este token. Ele dá acesso completo à sua conta.
-          </p>
+          <div className="space-y-1">
+            <p className="text-[10px] text-[var(--muted-foreground)]">
+              Nunca compartilhe este token. Ele dá acesso completo à sua conta.
+            </p>
+            {tokenFeedback && (
+              <p className={cn(
+                "text-[10px]",
+                tokenFeedback.kind === "success" ? "text-emerald-400" : "text-red-400"
+              )}>
+                {tokenFeedback.message}
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 

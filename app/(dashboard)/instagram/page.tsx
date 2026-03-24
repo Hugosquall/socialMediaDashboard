@@ -43,6 +43,17 @@ interface Post {
   shares?: number
 }
 
+type SupabasePostRow = {
+  id: string
+  type?: string | null
+  caption?: string | null
+  title?: string | null
+  scheduled_at?: string | null
+  published_at?: string | null
+  status?: string | null
+  metrics?: unknown
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const typeIcons: Record<PostType, React.ElementType> = {
   Post: ImageIcon,
@@ -63,6 +74,31 @@ const typeBgColors: Record<PostType, string> = {
   Reels: "bg-purple-500/10",
   Story: "bg-amber-500/10",
   Carrossel: "bg-sky-500/10",
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function toPostType(value: string | null | undefined): PostType {
+  return value === "Post" || value === "Reels" || value === "Story" || value === "Carrossel"
+    ? value
+    : "Post"
+}
+
+function toPostStatus(value: string | null | undefined): PostStatus {
+  return value === "scheduled" || value === "draft" || value === "published" || value === "backlog"
+    ? value
+    : "draft"
+}
+
+function getMetricValue(metrics: unknown, key: string): number | undefined {
+  if (!isRecord(metrics)) {
+    return undefined
+  }
+
+  const value = metrics[key]
+  return typeof value === "number" ? value : undefined
 }
 
 function formatDate(dateStr: string) {
@@ -86,19 +122,17 @@ const tabs: { key: PostStatus; label: string; icon: React.ElementType }[] = [
 ]
 
 // ─── Mapeamento Supabase → Post local ─────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function dbRowToPost(row: any): Post {
-  const metrics = (row.metrics as Record<string, number>) ?? {}
+function dbRowToPost(row: SupabasePostRow): Post {
   const dateStr = row.scheduled_at ?? row.published_at ?? ""
   return {
-    id: row.id as string,
-    type: (row.type as PostType) ?? "Post",
+    id: row.id,
+    type: toPostType(row.type),
     caption: row.caption ?? row.title ?? "",
     date: dateStr ? new Date(dateStr).toISOString() : "",
-    status: (row.status as PostStatus) ?? "draft",
-    likes: metrics.likes,
-    comments: metrics.comments,
-    shares: metrics.shares,
+    status: toPostStatus(row.status),
+    likes: getMetricValue(row.metrics, "likes"),
+    comments: getMetricValue(row.metrics, "comments"),
+    shares: getMetricValue(row.metrics, "shares"),
   }
 }
 

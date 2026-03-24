@@ -4,6 +4,23 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Eye, EyeOff, LayoutDashboard, Loader2, AlertCircle } from "lucide-react"
+import type { AuthError } from "@supabase/supabase-js"
+
+function mapAuthError(error: AuthError, mode: "login" | "signup"): string {
+  if (error.code === "over_email_send_rate_limit") {
+    return "Limite de envio de e-mails do Supabase atingido. Aguarde alguns minutos ou, em ambiente de desenvolvimento, desative a confirmação de e-mail no painel do Supabase Auth."
+  }
+
+  if (mode === "login" && error.message === "Invalid login credentials") {
+    return "E-mail ou senha incorretos."
+  }
+
+  if (mode === "signup" && error.message.includes("User already registered")) {
+    return "Este e-mail já está cadastrado. Faça login ou recupere a senha."
+  }
+
+  return error.message
+}
 
 export default function LoginPage() {
   const router = useRouter()
@@ -24,22 +41,37 @@ export default function LoginPage() {
     if (mode === "login") {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
-        setError(
-          error.message === "Invalid login credentials"
-            ? "E-mail ou senha incorretos."
-            : error.message
-        )
+        setError(mapAuthError(error, "login"))
         setLoading(false)
         return
       }
     } else {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { name: email.split("@")[0] } },
       })
+
       if (error) {
-        setError(error.message)
+        if (error.code === "over_email_send_rate_limit") {
+          // Se a conta já existir, tenta login direto para não bloquear fluxo local.
+          const { error: loginError } = await supabase.auth.signInWithPassword({ email, password })
+          if (!loginError) {
+            router.push("/instagram")
+            router.refresh()
+            return
+          }
+        }
+
+        setError(mapAuthError(error, "signup"))
+        setLoading(false)
+        return
+      }
+
+      // Quando confirmação por e-mail está ativa, signup pode não retornar sessão.
+      if (!data.session) {
+        setError("Conta criada. Confirme o e-mail para concluir o acesso.")
+        setMode("login")
         setLoading(false)
         return
       }

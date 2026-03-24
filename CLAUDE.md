@@ -178,6 +178,18 @@ Supabase Auth com email + senha. `proxy.ts` protege todas as rotas exceto `/logi
 - ✅ Perfil de usuário — salvo e carregado do Supabase
 - ✅ Configurações de integrações — connect/disconnect Instagram e Metricool na UI
 
+## Testes
+
+Os testes E2E ficam em `tests/e2e/` e são executados com `npm run e2e`. O `playwright.config.ts` sobe `npm run dev` automaticamente antes da suíte.
+
+Cobertura atual:
+- redirecionamento de acesso não autenticado para `/login`
+- validação da página de login e alternância entre login/cadastro
+- proteção da rota `/api/analytics/sources`
+- fluxo autenticado opcional com navegação até `/calendar`
+
+O cenário autenticado depende de `E2E_AUTH_EMAIL` e `E2E_AUTH_PASSWORD`. Sem essas variáveis, o teste é pulado e o restante da suíte continua válido.
+
 ---
 
 ## O que está como mock / placeholder

@@ -125,11 +125,19 @@ npm run lint
 npm run e2e
 ```
 
-O fluxo E2E principal cobre redirecionamento de rota protegida e renderização da tela de login. Existe também um cenário autenticado opcional, que só roda quando as credenciais forem fornecidas por env:
+O `npm run e2e` executa os testes em `tests/e2e/` com o servidor de desenvolvimento subido automaticamente pelo Playwright.
+
+Cobertura atual:
+- redirecionamento de rota protegida para `/login`
+- validação da tela de login e do fluxo entre login/cadastro
+- proteção da rota `/api/analytics/sources`
+- cenário autenticado opcional com navegação até `/calendar`
+
+Existe também um cenário autenticado opcional, que só roda quando as credenciais forem fornecidas por env:
 
 ```bash
 E2E_AUTH_EMAIL=seu-email@teste.com
 E2E_AUTH_PASSWORD=sua-senha-segura
 ```
 
-Se essas variáveis não existirem, o cenário autenticado é pulado automaticamente sem quebrar a suíte.
+Se essas variáveis não existirem, o cenário autenticado é pulado automaticamente sem quebrar a suíte. Os testes não autenticados continuam válidos sem nenhuma credencial adicional.

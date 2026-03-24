@@ -65,18 +65,88 @@ interface InsightMetric {
   values?: InsightMetricValue[]
 }
 
+interface InstagramInsightsResponse {
+  data?: InsightMetric[]
+}
+
+interface InstagramProfileResponse {
+  followers_count?: number
+}
+
+interface InstagramMediaItem {
+  id: string
+  caption?: string
+  media_type?: string
+  like_count?: number
+  comments_count?: number
+}
+
+interface InstagramMediaResponse {
+  data?: InstagramMediaItem[]
+}
+
+interface MetricoolNetworkValues {
+  impressions?: number
+  reach?: number
+  engagementRate?: number
+  followers?: number
+}
+
+interface MetricoolEvolutionDay {
+  date: string
+  networks?: {
+    instagram?: MetricoolNetworkValues
+    facebook?: MetricoolNetworkValues
+    twitter?: MetricoolNetworkValues
+  }
+}
+
+interface MetricoolEvolutionResponse {
+  data?: MetricoolEvolutionDay[]
+}
+
+interface MetricoolPostItem {
+  id?: string | number
+  text?: string
+  caption?: string
+  type?: string
+  network?: string
+  impressions?: number
+  reach?: number
+  engagementRate?: number
+  likes?: number
+  comments?: number
+  saves?: number
+}
+
+interface MetricoolPostsResponse {
+  data?: MetricoolPostItem[]
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
 function getMetricoolApiKey(metadata: unknown): string | null {
-  if (!metadata || typeof metadata !== "object") {
+  if (!isRecord(metadata)) {
     return null
   }
 
-  const value = (metadata as Record<string, unknown>).metricool_api_key
+  const value = metadata.metricool_api_key
   if (typeof value !== "string") {
     return null
   }
 
   const trimmedValue = value.trim()
   return trimmedValue.length > 0 ? trimmedValue : null
+}
+
+function parseJsonObject<T>(value: unknown): T {
+  if (!isRecord(value)) {
+    return {} as T
+  }
+
+  return value as T
 }
 
 // ─── Mock data (fallback) ─────────────────────────────────────────────────────
@@ -150,25 +220,23 @@ async function fetchInstagramAnalytics(
   if (!insightsRes.ok) {
     throw new Error(`Instagram insights error: ${await insightsRes.text()}`)
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const insightsData: any = await insightsRes.json()
+  const insightsData = parseJsonObject<InstagramInsightsResponse>(await insightsRes.json())
 
   // ── Seguidores atuais ─────────────────────────────────────────────────────
   const profileRes = await fetch(
     `https://graph.instagram.com/v19.0/${igUserId}?fields=followers_count&access_token=${accessToken}`
   )
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const profileData: any = profileRes.ok ? await profileRes.json() : {}
+  const profileData = profileRes.ok
+    ? parseJsonObject<InstagramProfileResponse>(await profileRes.json())
+    : {}
   const followersNow: number = profileData.followers_count ?? 0
 
   // ── Montar dicionários data→valor ─────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const impressionsMetric = insightsData.data?.find((m: any) => m.name === "impressions")
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const reachMetric       = insightsData.data?.find((m: any) => m.name === "reach")
+  const impressionsMetric = insightsData.data?.find((metric) => metric.name === "impressions")
+  const reachMetric = insightsData.data?.find((metric) => metric.name === "reach")
 
   const impressionsByDate: Record<string, number> = {}
-  const reachByDate:       Record<string, number> = {}
+  const reachByDate: Record<string, number> = {}
 
   for (const val of impressionsMetric?.values ?? []) {
     const d = val.end_time?.slice(0, 10) ?? ""
@@ -189,8 +257,8 @@ async function fetchInstagramAnalytics(
     nextDay.setDate(nextDay.getDate() + 1)
     const nextIso = nextDay.toISOString().slice(0, 10)
 
-    const impressions    = impressionsByDate[nextIso] ?? impressionsByDate[isoDate] ?? 0
-    const reach          = reachByDate[nextIso]       ?? reachByDate[isoDate]       ?? 0
+    const impressions = impressionsByDate[nextIso] ?? impressionsByDate[isoDate] ?? 0
+    const reach = reachByDate[nextIso] ?? reachByDate[isoDate] ?? 0
     // Estimativa de engajamento baseada em impressões/alcance quando não há dado direto
     const engagementRate = reach > 0
       ? parseFloat(((impressions / reach - 1) * 5).toFixed(2))
@@ -215,8 +283,9 @@ async function fetchInstagramAnalytics(
         access_token: accessToken,
       })
   )
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mediaData: any = mediaRes.ok ? await mediaRes.json() : { data: [] }
+  const mediaData = mediaRes.ok
+    ? parseJsonObject<InstagramMediaResponse>(await mediaRes.json())
+    : { data: [] }
   const topPosts: TopPost[] = []
 
   for (const media of (mediaData.data ?? []).slice(0, 10)) {
@@ -228,17 +297,17 @@ async function fetchInstagramAnalytics(
         })
     )
     const postInsights: { data?: InsightMetric[] } = postInsightsRes.ok
-      ? await postInsightsRes.json()
+      ? parseJsonObject<{ data?: InsightMetric[] }>(await postInsightsRes.json())
       : { data: [] }
     const getMetric = (name: string) =>
-      postInsights.data?.find((m: InsightMetric) => m.name === name)?.values?.[0]?.value ?? 0
+      postInsights.data?.find((metric) => metric.name === name)?.values?.[0]?.value ?? 0
 
-    const imp  = getMetric("impressions")
-    const rch  = getMetric("reach")
-    const svd  = getMetric("saved")
-    const lks  = media.like_count     ?? 0
+    const imp = getMetric("impressions")
+    const rch = getMetric("reach")
+    const svd = getMetric("saved")
+    const lks = media.like_count ?? 0
     const cmts = media.comments_count ?? 0
-    const eng  = rch > 0
+    const eng = rch > 0
       ? parseFloat((((lks + cmts + svd) / rch) * 100).toFixed(1))
       : 0
 
@@ -251,7 +320,7 @@ async function fetchInstagramAnalytics(
     topPosts.push({
       id:          media.id,
       caption:     media.caption ?? "(sem legenda)",
-      type:        typeMap[media.media_type] ?? media.media_type,
+      type:        typeMap[media.media_type ?? ""] ?? media.media_type ?? "Post",
       network:     "Instagram",
       impressions: imp,
       reach:       rch,
@@ -292,20 +361,18 @@ async function fetchMetricoolAnalytics(
   if (!statsRes.ok) {
     throw new Error(`Metricool stats error: ${await statsRes.text()}`)
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const statsData: any = await statsRes.json()
+  const statsData = parseJsonObject<MetricoolEvolutionResponse>(await statsRes.json())
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const daily: DailyDataPoint[] = (statsData.data ?? []).map((day: any) => {
+  const daily: DailyDataPoint[] = (statsData.data ?? []).map((day) => {
     const ig = day.networks?.instagram ?? {}
-    const fb = day.networks?.facebook  ?? {}
-    const tw = day.networks?.twitter   ?? {}
+    const fb = day.networks?.facebook ?? {}
+    const tw = day.networks?.twitter ?? {}
     return {
       date: new Date(day.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
       impressions:    (ig.impressions ?? 0) + (fb.impressions ?? 0) + (tw.impressions ?? 0),
-      reach:          (ig.reach       ?? 0) + (fb.reach       ?? 0) + (tw.reach       ?? 0),
+      reach:          (ig.reach ?? 0) + (fb.reach ?? 0) + (tw.reach ?? 0),
       engagementRate: parseFloat((ig.engagementRate ?? 0).toFixed(2)),
-      followers:       ig.followers ?? fb.followers ?? 0,
+      followers:      ig.followers ?? fb.followers ?? 0,
     }
   })
 
@@ -315,21 +382,21 @@ async function fetchMetricoolAnalytics(
       new URLSearchParams({ initDate: fmt(from), endDate: fmt(to), limit: "10" }),
     { headers }
   )
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const postsData: any = postsRes.ok ? await postsRes.json() : { data: [] }
+  const postsData = postsRes.ok
+    ? parseJsonObject<MetricoolPostsResponse>(await postsRes.json())
+    : { data: [] }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const topPosts: TopPost[] = (postsData.data ?? []).map((p: any, i: number) => ({
+  const topPosts: TopPost[] = (postsData.data ?? []).map((p, i) => ({
     id:          p.id ?? i,
     caption:     p.text ?? p.caption ?? "(sem legenda)",
-    type:        p.type    ?? "Post",
+    type:        p.type ?? "Post",
     network:     p.network ?? "Instagram",
-    impressions: p.impressions     ?? 0,
-    reach:       p.reach           ?? 0,
-    engagement:  p.engagementRate  ?? 0,
-    likes:       p.likes           ?? 0,
-    comments:    p.comments        ?? 0,
-    saves:       p.saves           ?? 0,
+    impressions: p.impressions ?? 0,
+    reach:       p.reach ?? 0,
+    engagement:  p.engagementRate ?? 0,
+    likes:       p.likes ?? 0,
+    comments:    p.comments ?? 0,
+    saves:       p.saves ?? 0,
   }))
 
   // engagementByType não está exposto diretamente pela Metricool — usamos mock

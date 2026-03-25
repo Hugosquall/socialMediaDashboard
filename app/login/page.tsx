@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Eye, EyeOff, LayoutDashboard, Loader2, AlertCircle } from "lucide-react"
 import type { AuthError } from "@supabase/supabase-js"
@@ -23,6 +23,20 @@ function mapAuthError(error: AuthError, mode: "login" | "signup"): string {
 }
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageContent missingSupabaseEnv={false} />}>
+      <LoginPageSearchAware />
+    </Suspense>
+  )
+}
+
+function LoginPageSearchAware() {
+  const searchParams = useSearchParams()
+  const missingSupabaseEnv = searchParams.get("supabase_error") === "missing_env"
+  return <LoginPageContent missingSupabaseEnv={missingSupabaseEnv} />
+}
+
+function LoginPageContent({ missingSupabaseEnv }: { missingSupabaseEnv: boolean }) {
   const router = useRouter()
   const [email,    setEmail]    = useState("")
   const [password, setPassword] = useState("")
@@ -100,6 +114,12 @@ export default function LoginPage() {
 
         {/* Card do formulário */}
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-xl">
+          {missingSupabaseEnv && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-400">
+              <AlertCircle size={13} className="shrink-0" />
+              Configuração ausente na Vercel: defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* E-mail */}
             <div>

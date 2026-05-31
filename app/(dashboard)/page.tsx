@@ -72,10 +72,10 @@ const sections = [
 ]
 
 const kpiCards = [
-  { label: "Seguidores totais", value: "48.2K", change: "+1.2K", icon: Users, trend: "up" },
-  { label: "Engajamento médio", value: "4.8%", change: "+0.3%", icon: Heart, trend: "up" },
-  { label: "Posts publicados", value: "127", change: "+12", icon: TrendingUp, trend: "up" },
-  { label: "Alcance orgânico", value: "92.4K", change: "+8.1K", icon: ArrowUpRight, trend: "up" },
+  { label: "Seguidores totais", value: "Conectar", change: "Instagram pendente", icon: Users, trend: "up" },
+  { label: "Engajamento médio", value: "—", change: "Aguardando dados", icon: Heart, trend: "up" },
+  { label: "Posts publicados", value: "—", change: "Aguardando sincronização", icon: TrendingUp, trend: "up" },
+  { label: "Alcance orgânico", value: "—", change: "Aguardando insights", icon: ArrowUpRight, trend: "up" },
 ]
 
 export default function OverviewPage() {
@@ -92,7 +92,7 @@ export default function OverviewPage() {
                   <div>
                     <p className="text-xs text-[var(--muted-foreground)]">{kpi.label}</p>
                     <p className="mt-1.5 text-2xl font-bold text-[var(--foreground)]">{kpi.value}</p>
-                    <p className="mt-1 text-xs text-emerald-400">{kpi.change} este mês</p>
+                    <p className="mt-1 text-xs text-emerald-400">{kpi.change}</p>
                   </div>
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--primary)]/10">
                     <Icon size={16} className="text-[var(--primary)]" />

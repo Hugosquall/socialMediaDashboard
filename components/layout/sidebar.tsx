@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { brandConfig, getInitials } from "@/lib/brand"
 
 const navItems = [
   {
@@ -69,6 +70,8 @@ type SidebarPanelProps = {
 }
 
 function SidebarPanel({ pathname, onNavigate, onLogout }: SidebarPanelProps) {
+  const initials = getInitials(brandConfig.brandName)
+
   return (
     <>
       {/* Logo */}
@@ -77,8 +80,8 @@ function SidebarPanel({ pathname, onNavigate, onLogout }: SidebarPanelProps) {
           <LayoutDashboard size={16} className="text-white" />
         </div>
         <div>
-          <p className="text-sm font-bold leading-none text-[var(--foreground)]">Dashboard</p>
-          <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">Content Manager</p>
+          <p className="text-sm font-bold leading-none text-[var(--foreground)]">{brandConfig.appName}</p>
+          <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{brandConfig.tagline}</p>
         </div>
       </div>
 
@@ -155,11 +158,11 @@ function SidebarPanel({ pathname, onNavigate, onLogout }: SidebarPanelProps) {
         {/* Avatar + logout */}
         <div className="mt-3 flex items-center gap-3 rounded-lg px-3 py-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-xs font-bold text-white">
-            S
+            {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-[var(--foreground)]">Sabrina</p>
-            <p className="truncate text-[10px] text-[var(--muted-foreground)]">Admin</p>
+            <p className="truncate text-xs font-semibold text-[var(--foreground)]">{brandConfig.brandName}</p>
+            <p className="truncate text-[10px] text-[var(--muted-foreground)]">{brandConfig.userRole}</p>
           </div>
           <button
             type="button"

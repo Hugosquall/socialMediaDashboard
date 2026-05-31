@@ -9,7 +9,7 @@ Siga este guia uma única vez. Leva ~10 minutos.
 1. Acesse [developers.facebook.com](https://developers.facebook.com) e faça login com a conta do Facebook do seu chefe (ou uma conta empresarial).
 2. Clique em **"Meus Apps"** → **"Criar App"**.
 3. Escolha o tipo **"Consumidor"** (ou "Business" se tiver uma Meta Business Suite).
-4. Dê um nome ao app, ex: `Dashboard Sabrina`, e clique em **Criar**.
+4. Dê um nome ao app, ex: `Instagram Dashboard`, e clique em **Criar**.
 
 ---
 

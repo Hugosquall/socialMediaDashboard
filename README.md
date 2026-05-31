@@ -1,4 +1,4 @@
-# Dashboard Sabrina
+# Instagram Dashboard
 
 Dashboard privado de gestão de redes sociais — Instagram Manager, Analytics, Calendário de Conteúdo, Monitoramento de Concorrentes e News Consolidator.
 

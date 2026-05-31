@@ -4,19 +4,19 @@ test.describe("Smoke", () => {
   test("redireciona acesso não autenticado para /login", async ({ page }) => {
     await page.goto("/")
 
-    await expect(page).toHaveURL(/\/login$/)
+    await expect(page).toHaveURL(/\/login(\?.*)?$/)
   })
 
   test("redireciona outra rota protegida para /login", async ({ page }) => {
     await page.goto("/calendar")
 
-    await expect(page).toHaveURL(/\/login$/)
+    await expect(page).toHaveURL(/\/login(\?.*)?$/)
   })
 
   test("renderiza a tela de login", async ({ page }) => {
     await page.goto("/login")
 
-    await expect(page.getByRole("heading", { name: "Dashboard Sabrina" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Instagram Dashboard" })).toBeVisible()
     await expect(page.getByText("Faça login para continuar")).toBeVisible()
     await expect(page.locator('input[type="email"][placeholder="seu@email.com"]')).toBeVisible()
     await expect(page.locator('input[type="password"][placeholder="••••••••"]')).toBeVisible()

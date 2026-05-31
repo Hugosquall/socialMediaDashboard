@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Eye, EyeOff, LayoutDashboard, Loader2, AlertCircle } from "lucide-react"
 import type { AuthError } from "@supabase/supabase-js"
+import { brandConfig } from "@/lib/brand"
 
 function mapAuthError(error: AuthError, mode: "login" | "signup"): string {
   if (error.code === "over_email_send_rate_limit") {
@@ -105,7 +106,7 @@ function LoginPageContent({ missingSupabaseEnv }: { missingSupabaseEnv: boolean 
             <LayoutDashboard size={22} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-[var(--foreground)]">Dashboard Sabrina</h1>
+            <h1 className="text-xl font-bold text-[var(--foreground)]">{brandConfig.appName}</h1>
             <p className="text-sm text-[var(--muted-foreground)]">
               {mode === "login" ? "Faça login para continuar" : "Crie sua conta"}
             </p>

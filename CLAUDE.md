@@ -1,4 +1,4 @@
-# Dashboard Sabrina — CLAUDE.md
+# Instagram Dashboard — CLAUDE.md
 
 Documentação técnica do projeto para uso como contexto em sessões futuras com Claude.
 
@@ -28,7 +28,7 @@ Documentação técnica do projeto para uso como contexto em sessões futuras co
 ## Estrutura de Pastas
 
 ```
-dashboard-sabrina/
+instagram-dashboard/
 ├── app/
 │   ├── (dashboard)/              # Route group — aplica DashboardLayout
 │   │   ├── layout.tsx            # Layout com Sidebar + Topbar
@@ -196,7 +196,7 @@ O cenário autenticado depende de `E2E_AUTH_EMAIL` e `E2E_AUTH_PASSWORD`. Sem es
 
 | Funcionalidade | Localização | Observação |
 |---|---|---|
-| KPIs de seguidores no Instagram Manager | `instagram/page.tsx` — valor fixo "48.2K" | Aguarda Instagram Graph API conectado |
+| KPIs de seguidores no Instagram Manager | `instagram/page.tsx` — estado "Conectar" | Aguarda Instagram Graph API conectado |
 | Competitor Tracker | `competitors/page.tsx` | UI completa, dados mockados inline (tabela `competitors` existe no Supabase) |
 | Content Calendar | `calendar/page.tsx` | Dados reais da tabela `posts`, com filtros de plataforma e calendário mensal |
 | Notificações | `notifications/page.tsx` | UI funcional (marcar lida, filtrar, dispensar), sem fonte de dados real |

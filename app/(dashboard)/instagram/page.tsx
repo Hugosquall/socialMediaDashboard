@@ -422,7 +422,7 @@ export default function InstagramPage() {
         {/* ── KPI Strip ── */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[
-            { label: "Seguidores",       value: "48.2K",                              sub: "+312 esta semana",       icon: Camera,         color: "text-pink-400"   },
+            { label: "Seguidores",       value: "Conectar",                           sub: "Instagram pendente",     icon: Camera,         color: "text-pink-400"   },
             { label: "Posts agendados",  value: counts.scheduled.toString(),          sub: "próximos 7 dias",        icon: Clock,          color: "text-indigo-400" },
             { label: "Curtidas (30d)",   value: totalLikes.toLocaleString("pt-BR"),   sub: "+18% vs mês anterior",   icon: Heart,          color: "text-rose-400"   },
             { label: "Comentários (30d)",value: totalComments.toLocaleString("pt-BR"),sub: "+9% vs mês anterior",    icon: MessageCircle,  color: "text-sky-400"    },

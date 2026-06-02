@@ -12,7 +12,7 @@
 
 **Requirements:** BRAND-01, BRAND-02, BRAND-03, SETUP-01, SETUP-02, SETUP-03, QUAL-01, QUAL-02, QUAL-03
 **UI hint:** yes
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Success criteria:
 1. No visible inherited "Sabrina" branding, fake follower numbers or example Meta secrets remain.
@@ -22,7 +22,9 @@ Success criteria:
 5. `npm run lint`, `npm run build` and smoke E2E pass.
 
 Plans:
-- [ ] TBD
+- [ ] 01-01: Setup docs, environment safety and Supabase/Vercel runbook
+- [ ] 01-02: Honest integration states and remaining demo-data cleanup
+- [ ] 01-03: Final local/production validation and authenticated checkpoint
 
 ### Phase 2: Instagram Connection Hardening
 
@@ -88,4 +90,3 @@ Plans:
 
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
-

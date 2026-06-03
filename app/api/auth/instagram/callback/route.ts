@@ -12,6 +12,7 @@
  *  6. Redirecionamos para /settings com mensagem de sucesso
  */
 import { NextRequest, NextResponse } from "next/server"
+import { INSTAGRAM_SCOPES } from "@/lib/instagram"
 import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
@@ -30,9 +31,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${siteUrl}/settings?instagram_error=no_code`)
   }
 
-  const appId       = process.env.INSTAGRAM_APP_ID!
-  const appSecret   = process.env.INSTAGRAM_APP_SECRET!
+  const appId       = process.env.INSTAGRAM_APP_ID
+  const appSecret   = process.env.INSTAGRAM_APP_SECRET
   const redirectUri = `${siteUrl}/api/auth/instagram/callback`
+
+  if (!appId || !appSecret) {
+    console.error("[Instagram OAuth] Credenciais do app não configuradas")
+    return NextResponse.redirect(`${siteUrl}/settings?instagram_error=missing_credentials`)
+  }
 
   try {
     // ── 1. Trocar code por short-lived token ──────────────────────────────────
@@ -79,6 +85,11 @@ export async function GET(request: NextRequest) {
     const profileRes = await fetch(
       `https://graph.instagram.com/me?fields=id,username&access_token=${longToken}`
     )
+
+    if (!profileRes.ok) {
+      throw new Error(`Profile fetch failed: ${await profileRes.text()}`)
+    }
+
     const { username: instagramUsername } =
       (await profileRes.json()) as { id: string; username: string }
 
@@ -99,7 +110,7 @@ export async function GET(request: NextRequest) {
           instagram_username:  instagramUsername,
           access_token:        longToken,
           expires_at:          expiresAt,
-          scope:               "user_profile,user_media",
+          scope:               INSTAGRAM_SCOPES,
         },
         { onConflict: "user_id" }
       )

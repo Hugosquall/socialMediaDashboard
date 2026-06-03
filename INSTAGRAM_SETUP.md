@@ -1,106 +1,104 @@
-# Como conectar o Instagram ao Dashboard
+# Configurar Instagram em produção
 
-Siga este guia uma única vez. Leva ~10 minutos.
+Este projeto usa o fluxo **Instagram API with Instagram Login** para conectar uma
+conta profissional do Instagram ao dashboard. A conta precisa ser **Business** ou
+**Creator**; conta pessoal não entrega os dados necessários de analytics.
 
----
+URLs do projeto:
 
-## 1. Criar um app no Meta for Developers
+- Produção: `https://socialmediadashboard-kappa.vercel.app`
+- Callback OAuth: `https://socialmediadashboard-kappa.vercel.app/api/auth/instagram/callback`
+- Callback local: `http://localhost:3000/api/auth/instagram/callback`
 
-1. Acesse [developers.facebook.com](https://developers.facebook.com) e faça login com a conta do Facebook do seu chefe (ou uma conta empresarial).
-2. Clique em **"Meus Apps"** → **"Criar App"**.
-3. Escolha o tipo **"Consumidor"** (ou "Business" se tiver uma Meta Business Suite).
-4. Dê um nome ao app, ex: `Instagram Dashboard`, e clique em **Criar**.
+## 1. Preparar a conta do Instagram
 
----
+1. No Instagram, converta o perfil para **Professional account**.
+2. Escolha **Business** ou **Creator**.
+3. Confirme que o perfil tem acesso aos Insights no app do Instagram.
+4. Para uso privado, deixe o app Meta em desenvolvimento e adicione sua conta como tester/admin.
 
-## 2. Adicionar o produto "Instagram Basic Display"
+## 2. Criar ou ajustar o app na Meta
 
-1. No painel do app, vá em **"Adicionar Produto"**.
-2. Encontre **"Instagram Basic Display"** e clique em **Configurar**.
-3. Clique em **"Criar novo app"** na seção Instagram Basic Display.
-4. Aceite os termos.
+1. Acesse [Meta for Developers](https://developers.facebook.com/apps/).
+2. Crie ou abra o app usado pelo projeto.
+3. Adicione/configure o produto de Instagram com login para contas profissionais.
+4. Em OAuth, configure os redirects:
+   - `https://socialmediadashboard-kappa.vercel.app/api/auth/instagram/callback`
+   - `http://localhost:3000/api/auth/instagram/callback`
+5. Copie o **App ID** e o **App Secret**.
 
----
+## 3. Permissões usadas pelo projeto
 
-## 3. Configurar a URL de redirecionamento OAuth
+O projeto solicita estes escopos:
 
-No painel do Instagram Basic Display, em **"Configurações do app"**:
+| Escopo | Uso no dashboard |
+| --- | --- |
+| `instagram_business_basic` | Ler perfil profissional e mídia básica |
+| `instagram_business_manage_insights` | Ler métricas de conta e mídia |
 
-- **Valid OAuth Redirect URIs:** `http://localhost:3000/api/auth/instagram/callback`
-  - Em produção, adicione também: `https://seu-dominio.com/api/auth/instagram/callback`
-- **Deauthorize Callback URL:** `http://localhost:3000/api/auth/instagram/deauth` (pode deixar placeholder)
-- **Data Deletion Request URL:** `http://localhost:3000/api/auth/instagram/delete` (pode deixar placeholder)
+Para uso pessoal, normalmente basta a conta estar adicionada ao app como
+admin/developer/tester. Para liberar a conexão para contas de terceiros, será
+necessário passar por App Review e obter acesso avançado.
 
-Clique em **Salvar alterações**.
+## 4. Configurar variáveis na Vercel
 
----
-
-## 4. Adicionar usuário de teste
-
-Como o app ainda está em modo desenvolvimento, apenas usuários adicionados como "testers" podem conectar:
-
-1. Vá em **"Funções"** → **"Testadores do Instagram"**.
-2. Clique em **"Adicionar Testadores do Instagram"**.
-3. Digite o nome de usuário do Instagram do seu chefe e envie o convite.
-4. O seu chefe precisa aceitar o convite em [instagram.com/accounts/manage_access](https://www.instagram.com/accounts/manage_access).
-
----
-
-## 5. Copiar as credenciais para o .env.local
-
-1. No painel do app, vá em **"Configurações básicas"** (Basic Settings).
-2. Copie o **App ID** e o **App Secret**.
-3. Abra o arquivo `.env.local` na raiz do projeto e preencha:
+No projeto `hugosqualls-projects/socialmediadashboard`, configure em
+**Production**:
 
 ```env
-INSTAGRAM_APP_ID=123456789012345
-INSTAGRAM_APP_SECRET=abc123def456ghi789jkl012mno345pq
+INSTAGRAM_APP_ID=...
+INSTAGRAM_APP_SECRET=...
+NEXT_PUBLIC_SITE_URL=https://socialmediadashboard-kappa.vercel.app
 ```
 
----
+Pela CLI:
 
-## 6. Testar a conexão
-
-1. Inicie o servidor: `npm run dev`
-2. Acesse `http://localhost:3000/login` e crie uma conta (ou entre).
-3. Vá em **Settings → Integrações**.
-4. Clique em **"Conectar"** ao lado de "Instagram Graph API".
-5. Você será redirecionado para o Instagram, autorize o app.
-6. Pronto! O token será salvo no banco e o status ficará "Conectado".
-
----
-
-## Escopos solicitados
-
-| Escopo | Para quê |
-|--------|----------|
-| `user_profile` | Nome, foto de perfil, username |
-| `user_media` | Lista de posts, reels e stories |
-| `instagram_manage_insights` | Impressões, alcance, engajamento |
-
----
-
-## Publicar o app (quando quiser usar em produção)
-
-Enquanto o app está em modo **desenvolvimento**, apenas testers podem conectar.
-Para usar com qualquer conta Instagram:
-
-1. Vá em **"Revisão do App"** → **"Permissões e funcionalidades"**.
-2. Solicite aprovação para os escopos `user_profile` e `user_media`.
-3. A Meta revisa em ~5 dias úteis.
-
-Para uso pessoal (só o seu chefe), o modo desenvolvimento com tester é suficiente.
-
----
-
-## Renovação do token
-
-O token do Instagram dura **60 dias**. O dashboard pode renovar automaticamente.
-Uma futura melhoria é adicionar um cron job no Supabase Edge Functions para renovar
-antes de expirar, chamando:
-
+```bash
+printf "%s" "<app-id>" | vercel env add INSTAGRAM_APP_ID production
+printf "%s" "<app-secret>" | vercel env add INSTAGRAM_APP_SECRET production
+vercel --prod
 ```
+
+Nunca coloque `INSTAGRAM_APP_SECRET` em variável `NEXT_PUBLIC_`.
+
+## 5. Configurar ambiente local
+
+Preencha `.env.local`:
+
+```env
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+INSTAGRAM_APP_ID=...
+INSTAGRAM_APP_SECRET=...
+```
+
+Depois rode:
+
+```bash
+npm run dev
+```
+
+## 6. Testar
+
+1. Acesse `https://socialmediadashboard-kappa.vercel.app`.
+2. Crie ou entre na sua conta do dashboard.
+3. Vá para **Settings -> Integrações**.
+4. Clique em **Conectar** no Instagram.
+5. Autorize no Instagram.
+6. Ao voltar para `/settings`, o status deve aparecer como conectado.
+
+Quando conectado, a rota `/api/analytics` busca dados do Instagram. Se o token
+não existir ou a API negar acesso, o dashboard cai para Metricool, se configurado,
+ou para dados mockados.
+
+## 7. Renovação de token
+
+O token longo do Instagram vence em aproximadamente 60 dias. A renovação pode ser
+feita com:
+
+```http
 GET https://graph.instagram.com/refresh_access_token
   ?grant_type=ig_refresh_token
   &access_token=TOKEN_ATUAL
 ```
+
+Ainda falta automatizar essa renovação com cron ou job agendado.

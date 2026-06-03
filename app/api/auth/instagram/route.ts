@@ -3,11 +3,11 @@
  * Redireciona o usuário para o fluxo OAuth do Instagram (Meta).
  *
  * Escopos solicitados:
- *  - user_profile  → nome, foto, username
- *  - user_media    → posts, reels, stories
- *  - instagram_manage_insights → métricas de alcance/impressões
+ *  - instagram_business_basic           -> username e mídia de contas profissionais
+ *  - instagram_business_manage_insights -> métricas de alcance/impressões
  */
 import { NextResponse } from "next/server"
+import { INSTAGRAM_SCOPES } from "@/lib/instagram"
 
 export async function GET() {
   const appId       = process.env.INSTAGRAM_APP_ID
@@ -24,7 +24,7 @@ export async function GET() {
   const params = new URLSearchParams({
     client_id:     appId,
     redirect_uri:  redirectUri,
-    scope:         "user_profile,user_media,instagram_manage_insights",
+    scope:         INSTAGRAM_SCOPES,
     response_type: "code",
   })
 

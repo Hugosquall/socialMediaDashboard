@@ -54,6 +54,10 @@ export async function proxy(request: NextRequest) {
 
   // Redireciona para login se não autenticado em rota protegida
   if (!user && !isPublic) {
+    if (pathname === "/api/auth/instagram") {
+      console.info("[Instagram OAuth] request redirected to login: missing session")
+    }
+
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = "/login"
     return NextResponse.redirect(loginUrl)

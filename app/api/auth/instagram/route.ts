@@ -15,6 +15,8 @@ export async function GET() {
   const redirectUri = `${siteUrl}/api/auth/instagram/callback`
 
   if (!appId) {
+    console.error("[Instagram OAuth] missing INSTAGRAM_APP_ID")
+
     return NextResponse.json(
       { error: "INSTAGRAM_APP_ID não configurado em .env.local" },
       { status: 500 }
@@ -29,5 +31,10 @@ export async function GET() {
   })
 
   const authUrl = `https://api.instagram.com/oauth/authorize?${params}`
+  console.info("[Instagram OAuth] redirecting to Instagram", {
+    redirectUri,
+    scope: INSTAGRAM_SCOPES,
+  })
+
   return NextResponse.redirect(authUrl)
 }

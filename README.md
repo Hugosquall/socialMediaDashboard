@@ -42,9 +42,10 @@ Copie `.env.example` para `.env.local` e preencha os valores:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
-# Instagram Graph API (opcional — habilita dados reais no Analytics e Instagram Manager)
-INSTAGRAM_APP_ID=
-INSTAGRAM_APP_SECRET=
+# Instagram Graph API via Facebook Login (opcional — habilita dados reais)
+META_APP_ID=
+META_APP_SECRET=
+META_GRAPH_API_VERSION=v19.0
 
 # Metricool (opcional — habilita métricas de Facebook e Twitter no Analytics)
 METRICOOL_API_KEY=
@@ -76,8 +77,8 @@ A chave da Metricool pode ser configurada diretamente na interface em **Configur
 
 | Endpoint | Método | Descrição |
 |---|---|---|
-| `GET /api/auth/instagram` | GET | Inicia OAuth do Instagram |
-| `GET /api/auth/instagram/callback` | GET | Callback OAuth — salva token no Supabase |
+| `GET /api/auth/instagram` | GET | Inicia OAuth via Facebook Login |
+| `GET /api/auth/instagram/callback` | GET | Callback OAuth — salva Page Access Token no Supabase |
 | `GET /api/analytics` | GET | Dados de analytics (Instagram → Metricool → mock) |
 | `GET /api/analytics/sources` | GET | Verifica quais fontes estão configuradas |
 | `POST /api/analytics/sources` | POST | Salva Metricool API key no `user_metadata` do usuário autenticado |
@@ -94,7 +95,7 @@ Tabelas principais:
 
 - **`profiles`** — nome, handle, bio, avatar do usuário
 - **`posts`** — posts do Instagram Manager (caption, tipo, status, datas, métricas)
-- **`instagram_tokens`** — access token OAuth do Instagram por usuário
+- **`instagram_tokens`** — Page Access Token para Instagram Graph API por usuário
 - **`competitors`** — concorrentes monitorados
 - **`notifications`** — central de notificações persistida por usuário
 
@@ -107,7 +108,7 @@ Tabelas principais:
 
 O Analytics usa uma hierarquia de fontes com fallback automático:
 
-1. **Instagram Graph API** — se o usuário tiver conectado o Instagram via OAuth (token salvo no Supabase). Retorna impressões, alcance, crescimento de seguidores e top posts reais.
+1. **Instagram Graph API** — se o usuário tiver conectado o Instagram via Facebook Login (Page Access Token salvo no Supabase). Retorna impressões, alcance, crescimento de seguidores e top posts reais.
 2. **Metricool** — se houver chave no `user_metadata` do usuário autenticado (fallback: `METRICOOL_API_KEY` no ambiente). Agrega dados de Instagram, Facebook e Twitter.
 3. **Dados mockados** — fallback sempre disponível em desenvolvimento. Um banner laranja na página indica quando o mock está ativo.
 

@@ -140,7 +140,7 @@ function SettingsPageContent() {
       {instagramError === "missing_credentials" && (
         <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
           <AlertCircle size={16} className="shrink-0" />
-          Credenciais do Instagram não configuradas. Adicione INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET no .env.local.
+          Credenciais Meta não configuradas. Adicione META_APP_ID e META_APP_SECRET no .env.local.
         </div>
       )}
       {instagramError === "token_exchange_failed" && (
@@ -159,6 +159,18 @@ function SettingsPageContent() {
         <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           <AlertCircle size={16} className="shrink-0" />
           Instagram não retornou o código de autorização. Tente conectar novamente.
+        </div>
+      )}
+      {instagramError === "state_mismatch" && (
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <AlertCircle size={16} className="shrink-0" />
+          A validação de segurança do OAuth expirou. Clique em Conectar novamente.
+        </div>
+      )}
+      {instagramError === "no_page" && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+          <AlertCircle size={16} className="shrink-0" />
+          Nenhuma Página do Facebook vinculada a uma conta profissional do Instagram foi encontrada.
         </div>
       )}
       {instagramError === "server_error" && (
@@ -514,7 +526,7 @@ function IntegrationsTab({ instagramJustConnected }: { instagramJustConnected?: 
       name: "Instagram Graph API",
       description: instagramConnected
         ? `Conta @${instagramUsername} conectada. Dados de performance e insights disponíveis.`
-        : "Conecte sua conta para dados reais de performance, agendamento e insights",
+        : "Conecte via Facebook Login para buscar a conta profissional vinculada a uma Página",
       Icon: Camera,
       iconBg: "bg-gradient-to-br from-pink-500 to-orange-400",
       connected: instagramConnected,
@@ -701,8 +713,8 @@ function IntegrationsTab({ instagramJustConnected }: { instagramJustConnected?: 
               Próximo passo: conectar Instagram
             </p>
             <p className="mt-0.5 text-xs leading-relaxed text-[var(--muted-foreground)]">
-              Crie um app no Meta for Developers, copie o App ID e App Secret para o .env.local,
-              depois clique em Conectar no Instagram Graph API acima.
+              Configure o app Meta com Facebook Login, copie META_APP_ID e META_APP_SECRET para o .env.local,
+              vincule seu Instagram profissional a uma Página do Facebook e clique em Conectar acima.
               Consulte o arquivo <code className="text-[var(--primary)]">INSTAGRAM_SETUP.md</code> no projeto.
             </p>
           </div>

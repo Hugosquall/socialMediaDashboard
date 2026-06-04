@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
+import { META_GRAPH_API_VERSION } from "@/lib/instagram"
 import { createClient } from "@/lib/supabase/server"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -207,7 +208,7 @@ async function fetchInstagramAnalytics(
 
   // ── Insights de conta (impressões + alcance por dia) ──────────────────────
   const insightsUrl =
-    `https://graph.instagram.com/v19.0/${igUserId}/insights?` +
+    `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${igUserId}/insights?` +
     new URLSearchParams({
       metric:       "impressions,reach",
       period:       "day",
@@ -224,7 +225,7 @@ async function fetchInstagramAnalytics(
 
   // ── Seguidores atuais ─────────────────────────────────────────────────────
   const profileRes = await fetch(
-    `https://graph.instagram.com/v19.0/${igUserId}?fields=followers_count&access_token=${accessToken}`
+    `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${igUserId}?fields=followers_count&access_token=${accessToken}`
   )
   const profileData = profileRes.ok
     ? parseJsonObject<InstagramProfileResponse>(await profileRes.json())
@@ -276,7 +277,7 @@ async function fetchInstagramAnalytics(
 
   // ── Top posts do período ──────────────────────────────────────────────────
   const mediaRes = await fetch(
-    `https://graph.instagram.com/v19.0/${igUserId}/media?` +
+    `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${igUserId}/media?` +
       new URLSearchParams({
         fields:       "id,caption,media_type,timestamp,like_count,comments_count",
         limit:        "10",
@@ -290,7 +291,7 @@ async function fetchInstagramAnalytics(
 
   for (const media of (mediaData.data ?? []).slice(0, 10)) {
     const postInsightsRes = await fetch(
-      `https://graph.instagram.com/v19.0/${media.id}/insights?` +
+      `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${media.id}/insights?` +
         new URLSearchParams({
           metric:       "impressions,reach,saved",
           access_token: accessToken,

@@ -86,8 +86,9 @@ instagram-dashboard/
 # Copie de .env.example e preencha os valores reais
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-INSTAGRAM_APP_ID=
-INSTAGRAM_APP_SECRET=
+META_APP_ID=
+META_APP_SECRET=
+META_GRAPH_API_VERSION=v19.0
 METRICOOL_API_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
@@ -147,7 +148,7 @@ Tipos em `lib/database.types.ts`. Usar `Tables<"nome_da_tabela">` para tipar row
 
 A página `/analytics` consome `GET /api/analytics?from=YYYY-MM-DD&to=YYYY-MM-DD`. A route segue esta hierarquia com fallback automático:
 
-1. **Instagram Graph API** — se `instagram_tokens` existir para o usuário no Supabase. Busca via `graph.instagram.com/v19.0`.
+1. **Instagram Graph API** — se `instagram_tokens` existir para o usuário no Supabase. Busca via `graph.facebook.com/{version}` usando Page Access Token.
 2. **Metricool** — se houver chave no `user_metadata` do usuário autenticado (fallback para `METRICOOL_API_KEY`). Usa `app.metricool.com/api/v2`. Agrega Facebook e Twitter além do Instagram.
 3. **Dados mockados** — fallback sempre disponível. Usa gerador determinístico (seed baseado na data) para evitar hydration mismatch.
 
@@ -162,8 +163,8 @@ A route `/api/analytics/sources` (GET/POST/DELETE) gerencia as fontes: verifica 
 Supabase Auth com email + senha. `proxy.ts` protege todas as rotas exceto `/login` e `/api/auth/instagram/callback`.
 
 ### OAuth do Instagram
-1. `GET /api/auth/instagram` → redireciona para `api.instagram.com/oauth/authorize`
-2. Callback: troca code por short-lived token → long-lived token (60 dias) → salva em `instagram_tokens`
+1. `GET /api/auth/instagram` → redireciona para Facebook Login
+2. Callback: troca code por token do Graph API, lista Paginas com `instagram_business_account` e salva o Page Access Token em `instagram_tokens`
 3. Redireciona para `/settings?instagram_connected=true`
 
 ---
@@ -172,7 +173,7 @@ Supabase Auth com email + senha. `proxy.ts` protege todas as rotas exceto `/logi
 
 - ✅ Autenticação completa (login, cadastro, sessão persistida, proteção de rotas)
 - ✅ Instagram Manager — CRUD de posts no Supabase (criar, listar por status, deletar)
-- ✅ OAuth do Instagram — fluxo completo implementado, depende de credenciais Meta no `.env.local`
+- ✅ OAuth do Instagram — fluxo via Facebook Login implementado, depende de credenciais Meta no `.env.local`
 - ✅ News Consolidator — RSS feeds reais (ArchDaily, Dezeen, Archinect) com fallback mock
 - ✅ Analytics — sistema dual data source (Instagram Graph API + Metricool + mock)
 - ✅ Perfil de usuário — salvo e carregado do Supabase
@@ -209,7 +210,7 @@ O cenário autenticado depende de `E2E_AUTH_EMAIL` e `E2E_AUTH_PASSWORD`. Sem es
 
 ## Estado atual e dependências
 
-- **Instagram Graph API**: já integrado no código. Para sair do fallback mock, o ambiente precisa ter `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` e um token válido salvo no Supabase para o usuário autenticado.
+- **Instagram Graph API**: já integrado no código. Para sair do fallback mock, o ambiente precisa ter `META_APP_ID`, `META_APP_SECRET` e um Page Access Token válido salvo no Supabase para o usuário autenticado.
 - **Metricool**: já integrado no código. A chave é configurada por usuário no `user_metadata`, com fallback opcional para env global.
 - **Content Calendar**: usa dados reais da tabela `posts` no Supabase.
 - **Competitor Tracker**: ainda usa dados mockados inline; essa é a principal funcionalidade que segue como evolução futura.

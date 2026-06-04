@@ -4,8 +4,9 @@ export const META_GRAPH_API_VERSION =
 export const FACEBOOK_INSTAGRAM_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
+  "business_management",
   "instagram_basic",
-  "instagram_manage_insights",
+  "instagram_content_publish",
 ].join(",")
 
 export function getMetaAppCredentials() {

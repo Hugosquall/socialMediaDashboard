@@ -40,12 +40,19 @@ O OAuth solicita:
 | --- | --- |
 | `pages_show_list` | Listar Paginas que o usuario pode acessar |
 | `pages_read_engagement` | Ler dados basicos e engajamento da Pagina |
+| `business_management` | Autorizar acesso a ativos comerciais vinculados |
 | `instagram_basic` | Localizar a conta profissional vinculada e ler perfil/midia |
-| `instagram_manage_insights` | Ler metricas de conta e midia do Instagram |
+| `instagram_content_publish` | Permissao de conteudo exigida pelo setup de Instagram com Facebook Login |
 
 Para uso pessoal em desenvolvimento, o app pode ficar em development mode se o
 usuario que autoriza tiver papel no app. Para contas de terceiros, sera
 necessario App Review e acesso avancado para as permissoes.
+
+Observacao: a permissao de insights avancados aparece na Meta como
+`instagram_business_manage_insights`, mas o dialog de Facebook Login rejeitou
+esse escopo no setup atual. Por isso o OAuth inicial usa apenas as permissoes
+aceitas pelo produto **Configuracao da API com login do Facebook**; insights
+avancados ficam para habilitacao posterior.
 
 ## 4. Configurar variaveis na Vercel
 

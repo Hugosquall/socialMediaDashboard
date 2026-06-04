@@ -173,6 +173,12 @@ function SettingsPageContent() {
           Nenhuma Página do Facebook vinculada a uma conta profissional do Instagram foi encontrada.
         </div>
       )}
+      {instagramError === "target_not_found" && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
+          <AlertCircle size={16} className="shrink-0" />
+          A Meta não retornou o Instagram @hugodevqa. Vincule esse perfil a uma Página do Facebook que seu usuário administra e tente novamente.
+        </div>
+      )}
       {instagramError === "server_error" && (
         <div className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           <AlertCircle size={16} className="shrink-0" />

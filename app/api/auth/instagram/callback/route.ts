@@ -9,7 +9,9 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   FACEBOOK_INSTAGRAM_SCOPES,
   META_GRAPH_API_VERSION,
+  getInstagramTargetUsername,
   getMetaAppCredentials,
+  normalizeInstagramUsername,
 } from "@/lib/instagram"
 import { createClient } from "@/lib/supabase/server"
 
@@ -122,11 +124,28 @@ export async function GET(request: NextRequest) {
       })
 
     const pagesData = await fetchFacebookJson<FacebookPagesResponse>(pagesUrl)
-    const pageWithInstagram = pagesData.data?.find(
+    const pagesWithInstagram = (pagesData.data ?? []).filter(
       (page) => page.instagram_business_account?.id && page.access_token
     )
+    const targetUsername = getInstagramTargetUsername()
+    const pageWithInstagram = targetUsername
+      ? pagesWithInstagram.find((page) => {
+          const username = page.instagram_business_account?.username
+          return username ? normalizeInstagramUsername(username) === targetUsername : false
+        })
+      : pagesWithInstagram[0]
 
     if (!pageWithInstagram?.instagram_business_account?.id || !pageWithInstagram.access_token) {
+      if (targetUsername && pagesWithInstagram.length > 0) {
+        console.error("[Instagram OAuth] target Instagram account not returned", {
+          targetUsername,
+          returnedUsernames: pagesWithInstagram.map(
+            (page) => page.instagram_business_account?.username ?? "(sem username)"
+          ),
+        })
+        return buildSettingsRedirect(siteUrl, "target_not_found")
+      }
+
       console.error("[Instagram OAuth] no page with instagram_business_account returned")
       return buildSettingsRedirect(siteUrl, "no_page")
     }

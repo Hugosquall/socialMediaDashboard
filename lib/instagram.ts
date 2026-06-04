@@ -16,3 +16,16 @@ export function getMetaAppCredentials() {
       process.env.META_APP_SECRET?.trim() || process.env.INSTAGRAM_APP_SECRET?.trim() || "",
   }
 }
+
+export function normalizeInstagramUsername(username: string) {
+  return username.trim().replace(/^@/, "").toLowerCase()
+}
+
+export function getInstagramTargetUsername() {
+  const target =
+    process.env.INSTAGRAM_TARGET_USERNAME?.trim() ||
+    process.env.NEXT_PUBLIC_BRAND_HANDLE?.trim() ||
+    ""
+
+  return target ? normalizeInstagramUsername(target) : null
+}

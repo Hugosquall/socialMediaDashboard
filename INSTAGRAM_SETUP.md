@@ -63,6 +63,7 @@ No projeto `hugosqualls-projects/socialmediadashboard`, configure em
 META_APP_ID=...
 META_APP_SECRET=...
 META_GRAPH_API_VERSION=v19.0
+INSTAGRAM_TARGET_USERNAME=hugodevqa
 NEXT_PUBLIC_SITE_URL=https://socialmediadashboard-kappa.vercel.app
 ```
 
@@ -72,6 +73,7 @@ Pela CLI:
 printf "%s" "<app-id>" | vercel env add META_APP_ID production
 printf "%s" "<app-secret>" | vercel env add META_APP_SECRET production
 printf "%s" "v19.0" | vercel env add META_GRAPH_API_VERSION production
+printf "%s" "hugodevqa" | vercel env add INSTAGRAM_TARGET_USERNAME production
 vercel --prod
 ```
 
@@ -86,6 +88,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 META_APP_ID=...
 META_APP_SECRET=...
 META_GRAPH_API_VERSION=v19.0
+INSTAGRAM_TARGET_USERNAME=hugodevqa
 ```
 
 Depois rode:
@@ -114,6 +117,7 @@ dashboard cai para Metricool, se configurado, ou para dados mockados.
 | `missing_credentials` | `META_APP_ID` ou `META_APP_SECRET` ausente |
 | `state_mismatch` | OAuth expirou ou foi aberto sem passar pelo botao do app |
 | `no_page` | Usuario Facebook nao tem uma Pagina com Instagram profissional vinculado |
+| `target_not_found` | A Meta retornou outra conta, mas nao retornou `@hugodevqa` |
 | `server_error` | Falha no Graph API, permissao ausente ou credencial errada |
 
 ## 8. Renovacao de token

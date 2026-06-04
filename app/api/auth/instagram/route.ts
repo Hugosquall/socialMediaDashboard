@@ -4,6 +4,9 @@
  *
  * Escopos solicitados:
  *  - instagram_business_basic           -> username e mídia de contas profissionais
+ *  - instagram_business_manage_messages -> mensagens de contas profissionais
+ *  - instagram_business_manage_comments -> comentários de contas profissionais
+ *  - instagram_business_content_publish -> publicação de conteúdo
  *  - instagram_business_manage_insights -> métricas de alcance/impressões
  */
 import { NextResponse } from "next/server"
@@ -28,9 +31,10 @@ export async function GET() {
     redirect_uri:  redirectUri,
     scope:         INSTAGRAM_SCOPES,
     response_type: "code",
+    force_reauth:  "true",
   })
 
-  const authUrl = `https://api.instagram.com/oauth/authorize?${params}`
+  const authUrl = `https://www.instagram.com/oauth/authorize?${params}`
   console.info("[Instagram OAuth] redirecting to Instagram", {
     redirectUri,
     scope: INSTAGRAM_SCOPES,

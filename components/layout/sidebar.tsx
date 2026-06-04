@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Settings,
   Bell,
+  Sparkles,
   ChevronRight,
   LogOut,
 } from "lucide-react"
@@ -34,6 +35,12 @@ const navItems = [
     label: "Analytics",
     href: "/analytics",
     icon: BarChart3,
+  },
+  {
+    label: "Growth Lab",
+    href: "/growth-lab",
+    icon: Sparkles,
+    badge: "5",
   },
   {
     label: "Content Calendar",

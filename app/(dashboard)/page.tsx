@@ -10,6 +10,7 @@ import {
   Users,
   Heart,
   ArrowUpRight,
+  Sparkles,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -35,6 +36,17 @@ const sections = [
     badgeVariant: "default" as const,
     color: "from-indigo-500/20 to-violet-500/10",
     iconColor: "text-indigo-400",
+  },
+  {
+    title: "Growth Lab",
+    href: "/growth-lab",
+    icon: Sparkles,
+    description: "Prompts para ideias, hooks e retenção",
+    stat: "5 prompts estratégicos",
+    badge: "Novo",
+    badgeVariant: "default" as const,
+    color: "from-violet-500/20 to-fuchsia-500/10",
+    iconColor: "text-violet-400",
   },
   {
     title: "Content Calendar",

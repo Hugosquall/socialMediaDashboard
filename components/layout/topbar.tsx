@@ -7,6 +7,7 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   "/": { title: "Overview", description: "Visão geral do seu dashboard" },
   "/instagram": { title: "Instagram Manager", description: "Gerencie posts, stories e engajamento" },
   "/analytics": { title: "Analytics", description: "Métricas e performance de conteúdo" },
+  "/growth-lab": { title: "Growth Lab", description: "Prompts para ideias, hooks, formatos e retenção" },
   "/calendar": { title: "Content Calendar", description: "Planejamento e agendamento de conteúdo" },
   "/competitors": { title: "Competitor Tracker", description: "Monitore os seus concorrentes" },
   "/news": { title: "News Consolidator", description: "Notícias e tendências do setor" },

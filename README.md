@@ -1,6 +1,6 @@
 # Instagram Dashboard
 
-Dashboard privado de gestão de redes sociais — Instagram Manager, Analytics, Calendário de Conteúdo, Monitoramento de Concorrentes e News Consolidator.
+Dashboard privado de gestão de redes sociais — Instagram Manager, Growth Lab, Analytics, Calendário de Conteúdo, Monitoramento de Concorrentes e News Consolidator.
 
 ## Stack
 
@@ -63,6 +63,7 @@ A chave da Metricool pode ser configurada diretamente na interface em **Configur
 |---|---|---|
 | `/` | Overview | KPIs gerais + acesso rápido às seções |
 | `/instagram` | Instagram Manager | Posts no Supabase (CRUD real) |
+| `/growth-lab` | Growth Lab | Prompts estratégicos para ideias, hooks, formatos faceless, retenção e posicionamento |
 | `/analytics` | Analytics | Instagram Graph API → Metricool → mock |
 | `/calendar` | Content Calendar | Dados reais de `posts` no Supabase (com filtros e visão mensal) |
 | `/competitors` | Competitor Tracker | Supabase (tabela `competitors`) |

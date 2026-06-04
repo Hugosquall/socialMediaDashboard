@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,6 +25,7 @@ import {
   Send,
   AlignLeft,
   Loader2,
+  Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -457,10 +459,18 @@ export default function InstagramPage() {
                     : `${posts.length} post${posts.length !== 1 ? "s" : ""} salvos no banco de dados`}
                 </CardDescription>
               </div>
-              <Button size="sm" onClick={() => setShowModal(true)}>
-                <Plus size={14} />
-                Novo post
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/growth-lab">
+                    <Sparkles size={14} />
+                    Growth Lab
+                  </Link>
+                </Button>
+                <Button size="sm" onClick={() => setShowModal(true)}>
+                  <Plus size={14} />
+                  Novo post
+                </Button>
+              </div>
             </div>
 
             {/* Tabs */}

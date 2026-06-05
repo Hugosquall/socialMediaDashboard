@@ -155,7 +155,7 @@ export default function AnalyticsPage() {
   const source         = data?.source
   const srcAvailable   = data?.sourcesAvailable ?? { instagram: false, metricool: false }
 
-  const totalImpressions = dailyData.reduce((s, d) => s + d.impressions, 0)
+  const totalViews       = dailyData.reduce((s, d) => s + d.impressions, 0)
   const avgEngagement    = dailyData.length > 0
     ? (dailyData.reduce((s, d) => s + d.engagementRate, 0) / dailyData.length).toFixed(2)
     : "0.00"
@@ -166,10 +166,10 @@ export default function AnalyticsPage() {
 
   const kpis = [
     {
-      label: "Total de Impressões",
-      value: totalImpressions >= 1_000_000
-        ? `${(totalImpressions / 1_000_000).toFixed(1)}M`
-        : `${(totalImpressions / 1000).toFixed(1)}K`,
+      label: "Total de Visualizações",
+      value: totalViews >= 1_000_000
+        ? `${(totalViews / 1_000_000).toFixed(1)}M`
+        : `${(totalViews / 1000).toFixed(1)}K`,
       icon: Eye, color: "text-indigo-400", bg: "bg-indigo-400/10",
       change: "+24%", trend: "up" as const,
     },
@@ -372,9 +372,9 @@ export default function AnalyticsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Eye size={15} className="text-indigo-400" />
-              Impressões ao longo do tempo
+              Visualizações ao longo do tempo
             </CardTitle>
-            <CardDescription>Total diário de impressões nas redes</CardDescription>
+            <CardDescription>Total diário de visualizações nas redes</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -388,7 +388,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
                   <YAxis tick={{ fill: "#71717a", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
                   <Tooltip content={<DarkTooltip valueFormatter={(v) => `${Number(v).toLocaleString("pt-BR")}`} />} />
-                  <Line type="monotone" dataKey="impressions" name="Impressões" stroke="#6366f1" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#6366f1" }} />
+                  <Line type="monotone" dataKey="impressions" name="Visualizações" stroke="#6366f1" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: "#6366f1" }} />
                   <Line type="monotone" dataKey="reach"       name="Alcance"   stroke="#a78bfa" strokeWidth={2} strokeDasharray="4 3" dot={false} activeDot={{ r: 4, fill: "#a78bfa" }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -512,7 +512,7 @@ export default function AnalyticsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)]">
-                    {["#", "Conteúdo", "Rede", "Tipo", "Impressões", "Alcance", "Eng.", "Likes", "Comentários", "Salvos"].map((h) => (
+                    {["#", "Conteúdo", "Rede", "Tipo", "Visualizações", "Alcance", "Eng.", "Likes", "Comentários", "Salvos"].map((h) => (
                       <th key={h} className="pb-2.5 pr-4 text-left text-xs font-medium text-[var(--muted-foreground)] first:pr-2">
                         {h}
                       </th>

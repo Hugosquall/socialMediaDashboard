@@ -51,9 +51,17 @@ export interface AnalyticsResponse {
     instagram: boolean
     metricool: boolean
   }
+  profile?: InstagramAnalyticsProfile
   daily: DailyDataPoint[]
   topPosts: TopPost[]
   engagementByType: EngagementByType[]
+}
+
+export interface InstagramAnalyticsProfile {
+  username: string | null
+  followers: number
+  mediaCount: number
+  hasInsights: boolean
 }
 
 interface InsightMetricValue {
@@ -71,13 +79,16 @@ interface InstagramInsightsResponse {
 }
 
 interface InstagramProfileResponse {
+  username?: string
   followers_count?: number
+  media_count?: number
 }
 
 interface InstagramMediaItem {
   id: string
   caption?: string
   media_type?: string
+  timestamp?: string
   like_count?: number
   comments_count?: number
 }
@@ -199,18 +210,35 @@ async function fetchInstagramAnalytics(
   igUserId: string,
   from: Date,
   to: Date
-): Promise<{ daily: DailyDataPoint[]; topPosts: TopPost[] }> {
+): Promise<{ daily: DailyDataPoint[]; topPosts: TopPost[]; profile: InstagramAnalyticsProfile }> {
   const since = Math.floor(from.getTime() / 1000)
   // until é exclusivo na API — adiciona 1 dia
   const untilDate = new Date(to)
   untilDate.setDate(untilDate.getDate() + 1)
   const until = Math.floor(untilDate.getTime() / 1000)
 
-  // ── Insights de conta (impressões + alcance por dia) ──────────────────────
+  // ── Perfil básico: funciona com instagram_basic e mantém a UI populada mesmo
+  // quando a permissão de insights avançados ainda não foi aprovada pela Meta.
+  const profileRes = await fetch(
+    `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${igUserId}?` +
+      new URLSearchParams({
+        fields:       "username,followers_count,media_count",
+        access_token: accessToken,
+      })
+  )
+  if (!profileRes.ok) {
+    throw new Error(`Instagram profile error: ${await profileRes.text()}`)
+  }
+  const profileData = parseJsonObject<InstagramProfileResponse>(await profileRes.json())
+  const followersNow = profileData.followers_count ?? 0
+
+  // ── Insights de conta (views + alcance por dia) ───────────────────────────
+  // A Meta removeu/depreciou "impressions" para Instagram; o dashboard mantém
+  // o campo interno `impressions` por compatibilidade, mas ele representa views.
   const insightsUrl =
     `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${igUserId}/insights?` +
     new URLSearchParams({
-      metric:       "impressions,reach",
+      metric:       "views,reach",
       period:       "day",
       since:        since.toString(),
       until:        until.toString(),
@@ -218,22 +246,19 @@ async function fetchInstagramAnalytics(
     })
 
   const insightsRes = await fetch(insightsUrl)
-  if (!insightsRes.ok) {
-    throw new Error(`Instagram insights error: ${await insightsRes.text()}`)
+  let insightsData: InstagramInsightsResponse = {}
+  let hasInsights = false
+  if (insightsRes.ok) {
+    insightsData = parseJsonObject<InstagramInsightsResponse>(await insightsRes.json())
+    hasInsights = true
+  } else {
+    console.error("[Analytics] Instagram insights unavailable:", await insightsRes.text())
   }
-  const insightsData = parseJsonObject<InstagramInsightsResponse>(await insightsRes.json())
-
-  // ── Seguidores atuais ─────────────────────────────────────────────────────
-  const profileRes = await fetch(
-    `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${igUserId}?fields=followers_count&access_token=${accessToken}`
-  )
-  const profileData = profileRes.ok
-    ? parseJsonObject<InstagramProfileResponse>(await profileRes.json())
-    : {}
-  const followersNow: number = profileData.followers_count ?? 0
 
   // ── Montar dicionários data→valor ─────────────────────────────────────────
-  const impressionsMetric = insightsData.data?.find((metric) => metric.name === "impressions")
+  const impressionsMetric = insightsData.data?.find((metric) =>
+    metric.name === "views" || metric.name === "impressions"
+  )
   const reachMetric = insightsData.data?.find((metric) => metric.name === "reach")
 
   const impressionsByDate: Record<string, number> = {}
@@ -293,7 +318,7 @@ async function fetchInstagramAnalytics(
     const postInsightsRes = await fetch(
       `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${media.id}/insights?` +
         new URLSearchParams({
-          metric:       "impressions,reach,saved",
+          metric:       "views,reach,saved,total_interactions",
           access_token: accessToken,
         })
     )
@@ -303,7 +328,7 @@ async function fetchInstagramAnalytics(
     const getMetric = (name: string) =>
       postInsights.data?.find((metric) => metric.name === name)?.values?.[0]?.value ?? 0
 
-    const imp = getMetric("impressions")
+    const imp = getMetric("views") || getMetric("impressions")
     const rch = getMetric("reach")
     const svd = getMetric("saved")
     const lks = media.like_count ?? 0
@@ -333,7 +358,38 @@ async function fetchInstagramAnalytics(
   }
 
   topPosts.sort((a, b) => b.impressions - a.impressions)
-  return { daily, topPosts }
+  return {
+    daily,
+    topPosts,
+    profile: {
+      username: profileData.username ?? null,
+      followers: followersNow,
+      mediaCount: profileData.media_count ?? 0,
+      hasInsights,
+    },
+  }
+}
+
+function buildInstagramEngagementByType(topPosts: TopPost[]): EngagementByType[] {
+  const groups = new Map<string, { total: number; count: number }>()
+
+  for (const post of topPosts) {
+    const current = groups.get(post.type) ?? { total: 0, count: 0 }
+    current.total += post.engagement
+    current.count += 1
+    groups.set(post.type, current)
+  }
+
+  if (groups.size === 0) {
+    return MOCK_ENGAGEMENT_BY_TYPE
+  }
+
+  return Array.from(groups.entries()).map(([type, value]) => ({
+    type,
+    instagram: parseFloat((value.total / value.count).toFixed(2)),
+    facebook: 0,
+    twitter: 0,
+  }))
 }
 
 // ─── Metricool API ────────────────────────────────────────────────────────────
@@ -459,15 +515,16 @@ export async function GET(request: NextRequest) {
   // ── 1. Tentar Instagram Graph API ─────────────────────────────────────────
   if (instagramToken && instagramUserId) {
     try {
-      const { daily, topPosts } = await fetchInstagramAnalytics(
+      const { daily, topPosts, profile } = await fetchInstagramAnalytics(
         instagramToken, instagramUserId, from, to
       )
       return NextResponse.json({
         source: "instagram",
         sourcesAvailable,
+        profile,
         daily,
         topPosts,
-        engagementByType: MOCK_ENGAGEMENT_BY_TYPE,
+        engagementByType: buildInstagramEngagementByType(topPosts),
       } satisfies AnalyticsResponse)
     } catch (err) {
       console.error("[Analytics] Instagram API error — tentando Metricool:", err)

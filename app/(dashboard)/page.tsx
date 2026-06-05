@@ -1,3 +1,5 @@
+"use client"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -13,14 +15,27 @@ import {
   Sparkles,
 } from "lucide-react"
 import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
+import type { AnalyticsResponse } from "@/app/api/analytics/route"
 
-const sections = [
+function formatCompact(value: number | null | undefined) {
+  if (value == null) return "—"
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
+  return value.toLocaleString("pt-BR")
+}
+
+function toInputDate(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+
+const baseSections = [
   {
     title: "Instagram Manager",
     href: "/instagram",
     icon: Camera,
     description: "Gerencie posts, stories e reels",
-    stat: "12 posts agendados",
+    stat: "Instagram pendente",
     badge: "Ativo",
     badgeVariant: "success" as const,
     color: "from-pink-500/20 to-rose-500/10",
@@ -31,7 +46,7 @@ const sections = [
     href: "/analytics",
     icon: BarChart3,
     description: "Performance e métricas detalhadas",
-    stat: "+24% esse mês",
+    stat: "Aguardando dados",
     badge: "Novo dado",
     badgeVariant: "default" as const,
     color: "from-indigo-500/20 to-violet-500/10",
@@ -83,14 +98,102 @@ const sections = [
   },
 ]
 
-const kpiCards = [
-  { label: "Seguidores totais", value: "Conectar", change: "Instagram pendente", icon: Users, trend: "up" },
-  { label: "Engajamento médio", value: "—", change: "Aguardando dados", icon: Heart, trend: "up" },
-  { label: "Posts publicados", value: "—", change: "Aguardando sincronização", icon: TrendingUp, trend: "up" },
-  { label: "Alcance orgânico", value: "—", change: "Aguardando insights", icon: ArrowUpRight, trend: "up" },
-]
-
 export default function OverviewPage() {
+  const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+
+    async function loadOverview() {
+      setLoading(true)
+      try {
+        const end = new Date()
+        const start = new Date(end)
+        start.setDate(end.getDate() - 29)
+        const res = await fetch(`/api/analytics?from=${toInputDate(start)}&to=${toInputDate(end)}`, {
+          cache: "no-store",
+        })
+        if (!res.ok) return
+        const json = (await res.json()) as AnalyticsResponse
+        if (active) setAnalytics(json)
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    loadOverview()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const dailyData = analytics?.daily ?? []
+  const totalViews = dailyData.reduce((sum, day) => sum + day.impressions, 0)
+  const totalReach = dailyData.reduce((sum, day) => sum + day.reach, 0)
+  const avgEngagement = dailyData.length > 0
+    ? dailyData.reduce((sum, day) => sum + day.engagementRate, 0) / dailyData.length
+    : null
+  const followers = analytics?.source === "instagram" ? analytics.profile?.followers : null
+  const mediaCount = analytics?.source === "instagram" ? analytics.profile?.mediaCount : null
+  const instagramConnected = analytics?.sourcesAvailable.instagram ?? false
+  const dataSourceLabel = analytics?.source === "instagram"
+    ? "Instagram conectado"
+    : analytics?.source === "metricool"
+      ? "via Metricool"
+      : "dados demo"
+
+  const kpiCards = [
+    {
+      label: "Seguidores totais",
+      value: loading ? "..." : instagramConnected ? formatCompact(followers) : "Conectar",
+      change: instagramConnected ? dataSourceLabel : "Instagram pendente",
+      icon: Users,
+    },
+    {
+      label: "Engajamento médio",
+      value: loading ? "..." : avgEngagement == null ? "—" : `${avgEngagement.toFixed(2)}%`,
+      change: instagramConnected ? "últimos 30 dias" : "Aguardando dados reais",
+      icon: Heart,
+    },
+    {
+      label: "Posts publicados",
+      value: loading ? "..." : formatCompact(mediaCount ?? analytics?.topPosts.length ?? null),
+      change: instagramConnected ? "mídias no perfil" : "Aguardando sincronização",
+      icon: TrendingUp,
+    },
+    {
+      label: "Alcance orgânico",
+      value: loading ? "..." : formatCompact(totalReach),
+      change: totalViews > 0 ? `${formatCompact(totalViews)} views` : "Aguardando insights",
+      icon: ArrowUpRight,
+    },
+  ]
+
+  const sections = useMemo(() => baseSections.map((section) => {
+    if (section.href === "/instagram") {
+      return {
+        ...section,
+        stat: instagramConnected
+          ? `${formatCompact(followers)} seguidores`
+          : "Instagram pendente",
+        badge: instagramConnected ? "Conectado" : "Pendente",
+        badgeVariant: instagramConnected ? "success" as const : "warning" as const,
+      }
+    }
+
+    if (section.href === "/analytics") {
+      return {
+        ...section,
+        stat: analytics ? `${formatCompact(totalReach)} de alcance em 30d` : "Aguardando dados",
+        badge: analytics?.source === "instagram" ? "Real" : section.badge,
+      }
+    }
+
+    return section
+  }), [analytics, followers, instagramConnected, totalReach])
+
   return (
     <div className="space-y-6">
       {/* KPIs */}

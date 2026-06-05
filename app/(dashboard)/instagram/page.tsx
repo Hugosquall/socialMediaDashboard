@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +29,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import type { AnalyticsResponse } from "@/app/api/analytics/route"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PostType = "Post" | "Reels" | "Story" | "Carrossel"
@@ -83,9 +84,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function toPostType(value: string | null | undefined): PostType {
-  return value === "Post" || value === "Reels" || value === "Story" || value === "Carrossel"
-    ? value
-    : "Post"
+  const normalized = value?.trim().toLowerCase()
+  if (normalized === "reels" || normalized === "reel") return "Reels"
+  if (normalized === "story" || normalized === "stories") return "Story"
+  if (normalized === "carrossel" || normalized === "carousel" || normalized === "carousel_album") {
+    return "Carrossel"
+  }
+  return "Post"
 }
 
 function toPostStatus(value: string | null | undefined): PostStatus {
@@ -113,6 +118,15 @@ function formatDate(dateStr: string) {
     hour: dateStr.includes("T") ? "2-digit" : undefined,
     minute: dateStr.includes("T") ? "2-digit" : undefined,
   })
+}
+
+function formatNumber(value: number | null | undefined) {
+  if (value == null) return "—"
+  return value.toLocaleString("pt-BR")
+}
+
+function toInputDate(d: Date) {
+  return d.toISOString().slice(0, 10)
 }
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
@@ -344,11 +358,13 @@ function EmptyState({ label }: { label: string }) {
 export default function InstagramPage() {
   const [posts,      setPosts]      = useState<Post[]>([])
   const [loading,    setLoading]    = useState(true)
+  const [analytics,  setAnalytics]  = useState<AnalyticsResponse | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(true)
   const [activeTab,  setActiveTab]  = useState<PostStatus>("scheduled")
   const [showModal,  setShowModal]  = useState(false)
   const [userId,     setUserId]     = useState<string | null>(null)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const loadPosts = useCallback(async () => {
     setLoading(true)
@@ -374,6 +390,27 @@ export default function InstagramPage() {
   useEffect(() => {
     loadPosts()
   }, [loadPosts])
+
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true)
+    try {
+      const end = new Date()
+      const start = new Date(end)
+      start.setDate(end.getDate() - 29)
+      const res = await fetch(`/api/analytics?from=${toInputDate(start)}&to=${toInputDate(end)}`, {
+        cache: "no-store",
+      })
+      if (!res.ok) return
+      const json = (await res.json()) as AnalyticsResponse
+      setAnalytics(json)
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAnalytics()
+  }, [loadAnalytics])
 
   async function handleAddPost(post: Omit<Post, "id">) {
     if (!userId) return
@@ -411,8 +448,18 @@ export default function InstagramPage() {
     backlog:   posts.filter((p) => p.status === "backlog").length,
   }
 
-  const totalLikes    = posts.filter((p) => p.status === "published").reduce((a, b) => a + (b.likes    ?? 0), 0)
-  const totalComments = posts.filter((p) => p.status === "published").reduce((a, b) => a + (b.comments ?? 0), 0)
+  const publishedPosts = posts.filter((p) => p.status === "published")
+  const instagramTopPosts = analytics?.source === "instagram" ? analytics.topPosts : []
+  const totalLikes = instagramTopPosts.length > 0
+    ? instagramTopPosts.reduce((sum, post) => sum + post.likes, 0)
+    : publishedPosts.reduce((sum, post) => sum + (post.likes ?? 0), 0)
+  const totalComments = instagramTopPosts.length > 0
+    ? instagramTopPosts.reduce((sum, post) => sum + post.comments, 0)
+    : publishedPosts.reduce((sum, post) => sum + (post.comments ?? 0), 0)
+  const instagramConnected = analytics?.sourcesAvailable.instagram ?? false
+  const followers = analytics?.source === "instagram" ? analytics.profile?.followers : null
+  const mediaCount = analytics?.source === "instagram" ? analytics.profile?.mediaCount : null
+  const profileLabel = analytics?.profile?.username ? `@${analytics.profile.username}` : "Instagram Graph API"
 
   return (
     <>
@@ -424,10 +471,34 @@ export default function InstagramPage() {
         {/* ── KPI Strip ── */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[
-            { label: "Seguidores",       value: "Conectar",                           sub: "Instagram pendente",     icon: Camera,         color: "text-pink-400"   },
-            { label: "Posts agendados",  value: counts.scheduled.toString(),          sub: "próximos 7 dias",        icon: Clock,          color: "text-indigo-400" },
-            { label: "Curtidas (30d)",   value: totalLikes.toLocaleString("pt-BR"),   sub: "+18% vs mês anterior",   icon: Heart,          color: "text-rose-400"   },
-            { label: "Comentários (30d)",value: totalComments.toLocaleString("pt-BR"),sub: "+9% vs mês anterior",    icon: MessageCircle,  color: "text-sky-400"    },
+            {
+              label: "Seguidores",
+              value: analyticsLoading ? "..." : instagramConnected ? formatNumber(followers) : "Conectar",
+              sub: instagramConnected ? profileLabel : "Instagram pendente",
+              icon: Camera,
+              color: "text-pink-400",
+            },
+            {
+              label: "Posts agendados",
+              value: counts.scheduled.toString(),
+              sub: mediaCount != null ? `${formatNumber(mediaCount)} mídias no perfil` : "conteúdo local",
+              icon: Clock,
+              color: "text-indigo-400",
+            },
+            {
+              label: "Curtidas (30d)",
+              value: analyticsLoading ? "..." : formatNumber(totalLikes),
+              sub: instagramTopPosts.length > 0 ? "dados do Instagram" : "dados locais",
+              icon: Heart,
+              color: "text-rose-400",
+            },
+            {
+              label: "Comentários (30d)",
+              value: analyticsLoading ? "..." : formatNumber(totalComments),
+              sub: instagramTopPosts.length > 0 ? "dados do Instagram" : "dados locais",
+              icon: MessageCircle,
+              color: "text-sky-400",
+            },
           ].map((stat) => {
             const Icon = stat.icon
             return (

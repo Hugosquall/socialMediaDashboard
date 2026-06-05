@@ -559,8 +559,8 @@ function IntegrationsTab({ instagramJustConnected }: { instagramJustConnected?: 
       onDisconnect: handleDisconnectMetricool,
     },
     {
-      name: "News RSS Feeds",
-      description: "ArchDaily, Dezeen, Archinect — feed de notícias de arquitetura já ativo",
+      name: "AI Dev RSS Feeds",
+      description: "OpenAI, GitHub, Hugging Face, Vercel, Stack Overflow, Martin Fowler e Thoughtworks",
       Icon: Newspaper,
       iconBg: "bg-gradient-to-br from-emerald-500 to-teal-500",
       connected: true,
@@ -800,7 +800,7 @@ function NotificationsTab() {
     {
       label: "Sistema",
       items: [
-        { key: "systemSync"     as const, label: "Sincronização do feed",     desc: "Quando o News Consolidator busca novos artigos" },
+        { key: "systemSync"     as const, label: "Sincronização do feed",     desc: "Quando o AI Dev Radar busca novos artigos" },
         { key: "weeklyReport"   as const, label: "Relatório semanal",         desc: "Resumo de performance toda segunda-feira" },
         { key: "emailDigest"    as const, label: "Digest por e-mail",         desc: "Resumo diário enviado por e-mail (requer integração)" },
       ],

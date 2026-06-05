@@ -53,7 +53,7 @@ const navItems = [
     icon: Swords,
   },
   {
-    label: "News Consolidator",
+    label: "AI Dev Radar",
     href: "/news",
     icon: Newspaper,
     badge: "5",

@@ -1,6 +1,6 @@
 # Instagram Dashboard
 
-Dashboard privado de gestão de redes sociais — Instagram Manager, Growth Lab, Analytics, Calendário de Conteúdo, Monitoramento de Concorrentes e News Consolidator.
+Dashboard privado de gestão de redes sociais — Instagram Manager, Growth Lab, Analytics, Calendario de Conteudo, Monitoramento de Concorrentes e AI Dev Radar.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Dashboard privado de gestão de redes sociais — Instagram Manager, Growth Lab,
 | shadcn/ui (manual) | — | Componentes base |
 | Radix UI | — | Primitivas acessíveis |
 | lucide-react | — | Ícones |
-| rss-parser | — | Feed de notícias (ArchDaily, Dezeen, Archinect) |
+| rss-parser | — | Feed de IA, engenharia de software e qualidade |
 
 ## Rodando localmente
 
@@ -68,7 +68,7 @@ A chave da Metricool pode ser configurada diretamente na interface em **Configur
 | `/analytics` | Analytics | Instagram Graph API → Metricool → mock |
 | `/calendar` | Content Calendar | Dados reais de `posts` no Supabase (com filtros e visão mensal) |
 | `/competitors` | Competitor Tracker | Supabase (tabela `competitors`) |
-| `/news` | News Consolidator | RSS feeds reais com fallback mock |
+| `/news` | AI Dev Radar | RSS feeds reais de IA/dev/QA com fallback mock |
 | `/notifications` | Notificações | Supabase (`notifications`) + seed inicial + health visual |
 | `/settings` | Configurações | Perfil e integrações no Supabase |
 | `/login` | Login / Cadastro | Supabase Auth |

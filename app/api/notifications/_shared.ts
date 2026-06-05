@@ -90,7 +90,7 @@ export const seedNotifications: NotificationSeedItem[] = [
     type: "success",
     category: "system",
     title: "Feed sincronizado",
-    body: "News Consolidator atualizou com 12 novos artigos de ArchDaily e Dezeen",
+    body: "AI Dev Radar atualizou com novos artigos de OpenAI, GitHub e Hugging Face",
     timeLabel: "4h",
     minutesAgo: 240,
     read: true,

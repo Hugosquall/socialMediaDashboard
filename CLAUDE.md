@@ -17,7 +17,7 @@ Documentação técnica do projeto para uso como contexto em sessões futuras co
 | Radix UI | — | Primitivas acessíveis (@radix-ui/react-slot, @radix-ui/react-separator, @radix-ui/react-tooltip) |
 | lucide-react | — | Ícones |
 | clsx + tailwind-merge | — | Utilitário de classes CSS (`cn()` em `lib/utils.ts`) |
-| rss-parser | — | Feed de notícias no News Consolidator |
+| rss-parser | — | Feed de IA, engenharia de software e qualidade no AI Dev Radar |
 
 **Nota sobre shadcn/ui:** CLI não disponível no ambiente. Componentes criados manualmente em `components/ui/` seguindo as mesmas convenções (forwardRef, cn(), variantes via objeto literal).
 
@@ -37,7 +37,7 @@ instagram-dashboard/
 │   │   ├── analytics/page.tsx    # Analytics — consome /api/analytics
 │   │   ├── calendar/page.tsx     # Content Calendar — dados reais de posts (Supabase)
 │   │   ├── competitors/page.tsx  # Competitor Tracker — Supabase
-│   │   ├── news/page.tsx         # News Consolidator — consome /api/news
+│   │   ├── news/page.tsx         # AI Dev Radar — consome /api/news
 │   │   ├── notifications/page.tsx# Notificações — persistidas no Supabase com health/seed
 │   │   └── settings/page.tsx     # Configurações — perfil Supabase + integrações
 │   ├── api/
@@ -174,7 +174,7 @@ Supabase Auth com email + senha. `proxy.ts` protege todas as rotas exceto `/logi
 - ✅ Autenticação completa (login, cadastro, sessão persistida, proteção de rotas)
 - ✅ Instagram Manager — CRUD de posts no Supabase (criar, listar por status, deletar)
 - ✅ OAuth do Instagram — fluxo via Facebook Login implementado, depende de credenciais Meta no `.env.local`
-- ✅ News Consolidator — RSS feeds reais (ArchDaily, Dezeen, Archinect) com fallback mock
+- ✅ AI Dev Radar — RSS feeds reais de IA/dev/QA com fallback mock
 - ✅ Analytics — sistema dual data source (Instagram Graph API + Metricool + mock)
 - ✅ Perfil de usuário — salvo e carregado do Supabase
 - ✅ Configurações de integrações — connect/disconnect Instagram e Metricool na UI

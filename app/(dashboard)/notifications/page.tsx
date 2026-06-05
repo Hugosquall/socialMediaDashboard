@@ -297,7 +297,7 @@ const INITIAL_NOTIFS: Notification[] = [
     type: "success",
     category: "system",
     title: "Feed sincronizado",
-    body: "News Consolidator atualizou com 12 novos artigos de ArchDaily e Dezeen",
+    body: "AI Dev Radar atualizou com novos artigos de OpenAI, GitHub e Hugging Face",
     time: "4h",
     read: true,
   },

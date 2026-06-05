@@ -10,8 +10,10 @@ import {
   TrendingUp,
   Clock,
   RefreshCw,
-  Building2,
-  Wrench,
+  BrainCircuit,
+  Bot,
+  Code2,
+  ShieldCheck,
   FlaskConical,
   Briefcase,
   LayoutGrid,
@@ -23,7 +25,7 @@ import type { NewsItem } from "@/app/api/news/route"
 
 // ─── Tipos e constantes ───────────────────────────────────────────────────────
 
-type TopicFilter = "all" | "tools" | "research" | "business" | "general"
+type TopicFilter = "all" | NewsItem["topic"]
 
 const TOPIC_CONFIG: Record<
   TopicFilter,
@@ -36,10 +38,22 @@ const TOPIC_CONFIG: Record<
     badgeClass: "bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/20",
   },
   tools: {
-    label: "Ferramentas",
-    icon: Wrench,
+    label: "Ferramentas IA",
+    icon: Bot,
     color: "text-blue-400",
     badgeClass: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  },
+  engineering: {
+    label: "Engenharia",
+    icon: Code2,
+    color: "text-cyan-400",
+    badgeClass: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+  },
+  quality: {
+    label: "Qualidade",
+    icon: ShieldCheck,
+    color: "text-rose-400",
+    badgeClass: "bg-rose-500/10 text-rose-400 border-rose-500/20",
   },
   research: {
     label: "Pesquisa",
@@ -55,7 +69,7 @@ const TOPIC_CONFIG: Record<
   },
   general: {
     label: "Geral",
-    icon: Building2,
+    icon: Newspaper,
     color: "text-[var(--muted-foreground)]",
     badgeClass:
       "bg-[var(--secondary)] text-[var(--muted-foreground)] border-[var(--border)]",
@@ -221,7 +235,15 @@ export default function NewsFeed() {
       acc.all++
       return acc
     },
-    { all: 0, tools: 0, research: 0, business: 0, general: 0 } as Record<TopicFilter, number>
+    {
+      all: 0,
+      tools: 0,
+      engineering: 0,
+      quality: 0,
+      research: 0,
+      business: 0,
+      general: 0,
+    } as Record<TopicFilter, number>
   )
 
   return (
@@ -230,9 +252,9 @@ export default function NewsFeed() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Building2 size={16} className="text-[var(--primary)]" />
+            <BrainCircuit size={16} className="text-[var(--primary)]" />
             <h2 className="text-sm font-semibold text-[var(--foreground)]">
-              Arquitetura &amp; Construção
+              Radar de IA &amp; Engenharia
             </h2>
             {source === "live" ? (
               <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
@@ -266,7 +288,7 @@ export default function NewsFeed() {
 
       {/* ── Filtros por tópico ── */}
       <div className="flex flex-wrap gap-2">
-        {(["all", "tools", "research", "business", "general"] as TopicFilter[]).map((t) => {
+        {(["all", "tools", "engineering", "quality", "research", "business", "general"] as TopicFilter[]).map((t) => {
           const cfg = TOPIC_CONFIG[t]
           const Icon = cfg.icon
           const isActive = activeTopic === t
@@ -359,7 +381,7 @@ export default function NewsFeed() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <Newspaper size={14} className="text-[var(--primary)]" />
-                  Feed de Notícias
+                  Feed de Inteligência
                 </CardTitle>
                 <CardDescription className="text-xs">
                   {filtered.length} {filtered.length === 1 ? "artigo encontrado" : "artigos encontrados"}
@@ -380,7 +402,7 @@ export default function NewsFeed() {
           {filtered.length === 0 && (
             <Card>
               <CardContent className="py-12 text-center">
-                <Building2
+                <BrainCircuit
                   size={32}
                   className="mx-auto mb-3 text-[var(--muted-foreground)] opacity-30"
                 />

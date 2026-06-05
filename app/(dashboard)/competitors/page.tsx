@@ -27,6 +27,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import type { AnalyticsResponse } from "@/app/api/analytics/route"
 import type { Tables } from "@/lib/database.types"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -63,6 +64,13 @@ interface ActionFeedback {
 
 type CompetitorRow = Tables<"competitors">
 
+interface UserBenchmark {
+  followers: number
+  engagementRate: number
+  postsPerWeek: number
+  source: "instagram" | "metricool" | "mock" | "none"
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmtNum(n: number): string {
@@ -82,6 +90,32 @@ function fmtLastPost(hours: number): string {
   if (hours < 24) return `${Math.floor(hours)}h`
   const days = Math.floor(hours / 24)
   return `${days}d`
+}
+
+function toInputDate(d: Date) {
+  return d.toISOString().slice(0, 10)
+}
+
+function buildUserBenchmark(analytics: AnalyticsResponse | null): UserBenchmark {
+  if (!analytics) {
+    return { followers: 0, engagementRate: 0, postsPerWeek: 0, source: "none" }
+  }
+
+  const daily = analytics.daily ?? []
+  const avgEngagement = daily.length > 0
+    ? daily.reduce((sum, day) => sum + day.engagementRate, 0) / daily.length
+    : 0
+  const followers = analytics.source === "instagram"
+    ? analytics.profile?.followers ?? daily[daily.length - 1]?.followers ?? 0
+    : daily[daily.length - 1]?.followers ?? 0
+  const postsPerWeek = Math.round(((analytics.topPosts?.length ?? 0) / 30) * 7)
+
+  return {
+    followers,
+    engagementRate: parseFloat(avgEngagement.toFixed(1)),
+    postsPerWeek,
+    source: analytics.source,
+  }
 }
 
 function totalFollowers(c: Competitor): number {
@@ -439,7 +473,7 @@ function AddCompetitorModal({
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: BrandX"
+              placeholder="Ex: Rocketseat, OpenAI, Código Fonte TV"
               required
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] transition-colors focus:border-[var(--primary)] focus:outline-none"
             />
@@ -484,7 +518,7 @@ function AddCompetitorModal({
                     onChange={(e) =>
                       setHandles((prev) => ({ ...prev, [p]: e.target.value }))
                     }
-                    placeholder={p === "youtube" ? "nome do canal" : "@handle"}
+                    placeholder={p === "youtube" ? "nome do canal" : "@perfil"}
                     className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-3 py-1.5 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] transition-colors focus:border-[var(--primary)] focus:outline-none"
                   />
                 </div>
@@ -599,6 +633,8 @@ function PlatformDetailRow({ account }: { account: SocialAccount }) {
 export default function CompetitorsPage() {
   const [competitors, setCompetitors] = useState<Competitor[]>([])
   const [loading, setLoading]         = useState(true)
+  const [analytics, setAnalytics]     = useState<AnalyticsResponse | null>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(true)
   const [userId, setUserId]           = useState<string | null>(null)
   const [showModal, setShowModal]     = useState(false)
   const [sortField, setSortField]     = useState<SortField>("totalFollowers")
@@ -608,7 +644,7 @@ export default function CompetitorsPage() {
   const [expanded, setExpanded]       = useState<Set<string>>(new Set())
   const [feedback, setFeedback]       = useState<ActionFeedback | null>(null)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     if (!feedback) return
@@ -650,7 +686,29 @@ export default function CompetitorsPage() {
     loadCompetitors()
   }, [loadCompetitors])
 
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true)
+    try {
+      const end = new Date()
+      const start = new Date(end)
+      start.setDate(end.getDate() - 29)
+      const res = await fetch(`/api/analytics?from=${toInputDate(start)}&to=${toInputDate(end)}`, {
+        cache: "no-store",
+      })
+      if (!res.ok) return
+      const json = (await res.json()) as AnalyticsResponse
+      setAnalytics(json)
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAnalytics()
+  }, [loadAnalytics])
+
   const alerts = useMemo(() => generateAlerts(competitors), [competitors])
+  const userBenchmark = useMemo(() => buildUserBenchmark(analytics), [analytics])
 
   const filtered = useMemo(() => {
     let list = competitors
@@ -834,6 +892,13 @@ export default function CompetitorsPage() {
             competitorsCount
         )
       : 0
+  const userSourceLabel = userBenchmark.source === "instagram"
+    ? "Instagram conectado"
+    : userBenchmark.source === "metricool"
+      ? "Metricool"
+      : userBenchmark.source === "mock"
+        ? "dados demo"
+        : "aguardando dados"
 
   return (
     <div className="space-y-5">
@@ -884,13 +949,16 @@ export default function CompetitorsPage() {
                 {platforms.filter((p) =>
                   competitors.some((c) => c.accounts.some((a) => a.platform === p))
                 ).length}{" "}
-                plataformas
+                plataformas · comparação com seus dados do Analytics
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
-                onClick={() => { void loadCompetitors() }}
+                onClick={() => {
+                  void loadCompetitors()
+                  void loadAnalytics()
+                }}
                 className="bg-[var(--secondary)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
               >
                 <RefreshCw size={13} />
@@ -952,11 +1020,15 @@ export default function CompetitorsPage() {
 
         <CardContent>
           {filtered.length === 0 ? (
-            <div className="py-16 text-center text-sm text-[var(--muted-foreground)]">
-              Nenhum concorrente encontrado.{" "}
+            <div className="mx-auto max-w-md py-16 text-center text-sm text-[var(--muted-foreground)]">
+              <p className="font-medium text-[var(--foreground)]">Nenhum concorrente encontrado</p>
+              <p className="mt-1 text-xs leading-relaxed">
+                Adicione perfis de IA, desenvolvimento, QA ou criadores técnicos para comparar seguidores,
+                engajamento e presença por rede.
+              </p>
               <button
                 onClick={() => setShowModal(true)}
-                className="text-[var(--primary)] underline"
+                className="mt-3 text-[var(--primary)] underline"
               >
                 Adicionar agora
               </button>
@@ -1164,7 +1236,7 @@ export default function CompetitorsPage() {
         {[
           {
             label: "Seus seguidores",
-            you: 48200,
+            you: userBenchmark.followers,
             avg: avgFollowersValue,
             icon: Users,
             fmt: (v: number) => fmtNum(v),
@@ -1172,7 +1244,7 @@ export default function CompetitorsPage() {
           },
           {
             label: "Engajamento médio",
-            you: 4.8,
+            you: userBenchmark.engagementRate,
             avg: avgEngagementValue,
             icon: Heart,
             fmt: (v: number) => `${v.toFixed(1)}%`,
@@ -1180,7 +1252,7 @@ export default function CompetitorsPage() {
           },
           {
             label: "Posts/semana",
-            you: 9,
+            you: userBenchmark.postsPerWeek,
             avg: avgPostsPerWeekValue,
             icon: BarChart3,
             fmt: (v: number) => v.toString(),
@@ -1212,7 +1284,9 @@ export default function CompetitorsPage() {
                 </div>
                 <div className="mt-3 flex items-end justify-between">
                   <div>
-                    <p className="text-[10px] text-[var(--muted-foreground)]">Você</p>
+                    <p className="text-[10px] text-[var(--muted-foreground)]">
+                      {analyticsLoading ? "Carregando..." : `Você · ${userSourceLabel}`}
+                    </p>
                     <p
                       className={`text-xl font-bold ${
                         youWins ? "text-[var(--primary)]" : "text-[var(--foreground)]"

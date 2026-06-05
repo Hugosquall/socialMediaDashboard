@@ -9,7 +9,7 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   "/analytics": { title: "Analytics", description: "Métricas e performance de conteúdo" },
   "/growth-lab": { title: "Growth Lab", description: "Prompts para ideias, hooks, formatos e retenção" },
   "/calendar": { title: "Content Calendar", description: "Planejamento e agendamento de conteúdo" },
-  "/competitors": { title: "Competitor Tracker", description: "Monitore os seus concorrentes" },
+  "/competitors": { title: "Competitor Tracker", description: "Compare perfis técnicos e criadores do seu nicho" },
   "/news": { title: "AI Dev Radar", description: "IA, engenharia, qualidade e ferramentas" },
   "/notifications": { title: "Notifications", description: "Suas notificações e alertas" },
   "/settings": { title: "Settings", description: "Configurações do dashboard" },

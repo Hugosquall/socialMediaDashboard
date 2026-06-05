@@ -67,7 +67,7 @@ A chave da Metricool pode ser configurada diretamente na interface em **Configur
 | `/growth-lab` | Growth Lab | Prompts estratégicos para ideias, hooks, formatos faceless, retenção e posicionamento |
 | `/analytics` | Analytics | Instagram Graph API → Metricool → mock |
 | `/calendar` | Content Calendar | Dados reais de `posts` no Supabase (com filtros e visão mensal) |
-| `/competitors` | Competitor Tracker | Supabase (tabela `competitors`) |
+| `/competitors` | Competitor Tracker | Supabase (`competitors`) + comparação com `/api/analytics` |
 | `/news` | AI Dev Radar | RSS feeds reais de IA/dev/QA com fallback mock |
 | `/notifications` | Notificações | Supabase (`notifications`) + seed inicial + health visual |
 | `/settings` | Configurações | Perfil e integrações no Supabase |
@@ -96,7 +96,7 @@ Tabelas principais:
 - **`profiles`** — nome, handle, bio, avatar do usuário
 - **`posts`** — posts do Instagram Manager (caption, tipo, status, datas, métricas)
 - **`instagram_tokens`** — Page Access Token para Instagram Graph API por usuário
-- **`competitors`** — concorrentes monitorados
+- **`competitors`** — concorrentes monitorados, handles e métricas manuais
 - **`notifications`** — central de notificações persistida por usuário
 
 ## Runbooks

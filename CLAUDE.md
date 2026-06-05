@@ -198,7 +198,7 @@ O cenário autenticado depende de `E2E_AUTH_EMAIL` e `E2E_AUTH_PASSWORD`. Sem es
 | Funcionalidade | Localização | Observação |
 |---|---|---|
 | KPIs de seguidores no Instagram Manager | `instagram/page.tsx` — estado "Conectar" | Aguarda Instagram Graph API conectado |
-| Competitor Tracker | `competitors/page.tsx` | UI completa, dados mockados inline (tabela `competitors` existe no Supabase) |
+| Competitor Tracker | `competitors/page.tsx` | Concorrentes persistidos no Supabase; métricas de concorrentes são informadas manualmente |
 | Content Calendar | `calendar/page.tsx` | Dados reais da tabela `posts`, com filtros de plataforma e calendário mensal |
 | Notificações | `notifications/page.tsx` | UI funcional (marcar lida, filtrar, dispensar), sem fonte de dados real |
 | Preferências de notificações no app | `notifications/page.tsx` e `settings/page.tsx` → `NotificationsTab` | Persistem em `user_metadata`, não em coluna dedicada |
@@ -213,7 +213,7 @@ O cenário autenticado depende de `E2E_AUTH_EMAIL` e `E2E_AUTH_PASSWORD`. Sem es
 - **Instagram Graph API**: já integrado no código. Para sair do fallback mock, o ambiente precisa ter `META_APP_ID`, `META_APP_SECRET` e um Page Access Token válido salvo no Supabase para o usuário autenticado.
 - **Metricool**: já integrado no código. A chave é configurada por usuário no `user_metadata`, com fallback opcional para env global.
 - **Content Calendar**: usa dados reais da tabela `posts` no Supabase.
-- **Competitor Tracker**: ainda usa dados mockados inline; essa é a principal funcionalidade que segue como evolução futura.
+- **Competitor Tracker**: usa a tabela `competitors` no Supabase para handles e métricas manuais, e compara contra os dados do usuário vindos de `/api/analytics`.
 
 ---
 

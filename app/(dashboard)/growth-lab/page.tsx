@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Check, Copy, FileText, Plus, Sparkles } from "lucide-react"
+import { Check, Copy, FileText, Loader2, Plus, Sparkles } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import {
   growthPrompts,
   type GrowthPromptInputKey,
 } from "@/lib/growth-prompts"
+import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
 const initialInput: Record<GrowthPromptInputKey, string> = {
@@ -24,21 +25,60 @@ const initialInput: Record<GrowthPromptInputKey, string> = {
   content: "",
 }
 
-const starterValues: Partial<Record<GrowthPromptInputKey, string>> = {
-  niche: "Arquitetura, interiores e design autoral",
-  audience: "Clientes premium, arquitetos e pessoas reformando imoveis",
-  goal: "Gerar salvamentos, compartilhamentos e leads qualificados",
+const defaultBriefValues: Record<GrowthPromptInputKey, string> = {
+  niche: "IA aplicada, desenvolvimento de sistemas com IA, QA e automacao de software",
+  audience: "Desenvolvedores, QAs, tech leads, founders e pessoas criando produtos com IA",
+  goal: "Gerar autoridade, salvamentos, compartilhamentos e conversas qualificadas",
+  idea: "",
   tone: "Inteligente, claro e sem exagero",
-  voice: "Especialista, elegante e direta",
+  voice: "Especialista tecnico, pragmatico, direto e didatico",
+  content: "",
+}
+
+type ProfileRow = {
+  name: string | null
+  handle: string | null
+  bio: string | null
+}
+
+type InstagramTokenRow = {
+  instagram_username: string | null
+}
+
+function normalizeHandle(value: string | null | undefined) {
+  const trimmed = value?.trim().replace(/^@/, "")
+  return trimmed ? `@${trimmed}` : ""
+}
+
+function buildUserBrief(profile: ProfileRow | null, instagram: InstagramTokenRow | null): Record<GrowthPromptInputKey, string> {
+  const name = profile?.name?.trim() ?? ""
+  const handle = normalizeHandle(instagram?.instagram_username || profile?.handle)
+  const bio = profile?.bio?.trim() ?? ""
+  const identity = [name, handle].filter(Boolean).join(" ")
+
+  return {
+    ...defaultBriefValues,
+    niche: bio || defaultBriefValues.niche,
+    audience: "Desenvolvedores, QAs, tech leads, founders e criadores interessados em IA aplicada",
+    goal: "Atrair audiencia qualificada para conteudos de IA, desenvolvimento, qualidade e automacao",
+    voice: identity
+      ? `Voz de ${identity}: especialista tecnico, pragmatico, direto e didatico`
+      : defaultBriefValues.voice,
+    content: bio,
+  }
 }
 
 export default function GrowthLabPage() {
   const [activeId, setActiveId] = useState(growthPrompts[0].id)
   const [input, setInput] = useState<Record<GrowthPromptInputKey, string>>({
     ...initialInput,
-    ...starterValues,
+    ...defaultBriefValues,
   })
   const [copied, setCopied] = useState(false)
+  const [loadingContext, setLoadingContext] = useState(true)
+  const [userBrief, setUserBrief] = useState<Record<GrowthPromptInputKey, string> | null>(null)
+
+  const supabase = useMemo(() => createClient(), [])
 
   const activePrompt = growthPrompts.find((prompt) => prompt.id === activeId) ?? growthPrompts[0]
   const generatedPrompt = useMemo(() => activePrompt.template(input), [activePrompt, input])
@@ -54,8 +94,40 @@ export default function GrowthLabPage() {
     window.setTimeout(() => setCopied(false), 1800)
   }
 
-  function fillStarterBrief() {
-    setInput((prev) => ({ ...prev, ...starterValues }))
+  const loadUserBrief = useCallback(async () => {
+    setLoadingContext(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const [{ data: profile }, { data: instagram }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("name, handle, bio")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("instagram_tokens")
+          .select("instagram_username")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ])
+
+      const brief = buildUserBrief(profile, instagram)
+      setUserBrief(brief)
+      setInput((prev) => ({ ...prev, ...brief }))
+      setCopied(false)
+    } finally {
+      setLoadingContext(false)
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    loadUserBrief()
+  }, [loadUserBrief])
+
+  function fillUserBrief() {
+    setInput((prev) => ({ ...prev, ...(userBrief ?? defaultBriefValues) }))
     setCopied(false)
   }
 
@@ -78,9 +150,9 @@ export default function GrowthLabPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={fillStarterBrief}>
-                <FileText size={14} />
-                Brief base
+              <Button type="button" variant="outline" size="sm" onClick={fillUserBrief} disabled={loadingContext}>
+                {loadingContext ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                {loadingContext ? "Carregando..." : "Usar meus dados"}
               </Button>
               <Button asChild size="sm">
                 <Link href="/instagram">
@@ -160,7 +232,11 @@ export default function GrowthLabPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <CardTitle className="text-base">Brief</CardTitle>
-                <CardDescription>Campos usados no prompt selecionado.</CardDescription>
+                <CardDescription>
+                  {loadingContext
+                    ? "Carregando perfil e Instagram conectados..."
+                    : "Campos usados no prompt selecionado."}
+                </CardDescription>
               </div>
               <Badge variant="secondary">{activePrompt.step}</Badge>
             </div>

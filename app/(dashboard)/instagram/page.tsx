@@ -26,6 +26,7 @@ import {
   AlignLeft,
   Loader2,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -33,7 +34,7 @@ import type { AnalyticsResponse } from "@/app/api/analytics/route"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PostType = "Post" | "Reels" | "Story" | "Carrossel"
-type PostStatus = "scheduled" | "draft" | "published" | "backlog"
+type PostStatus = "backlog" | "draft" | "approved" | "scheduled" | "publishing" | "published" | "failed"
 
 interface Post {
   id: string
@@ -44,6 +45,7 @@ interface Post {
   likes?: number
   comments?: number
   shares?: number
+  mediaUrl?: string | null
 }
 
 type SupabasePostRow = {
@@ -54,6 +56,7 @@ type SupabasePostRow = {
   scheduled_at?: string | null
   published_at?: string | null
   status?: string | null
+  media_url?: string | null
   metrics?: unknown
 }
 
@@ -94,7 +97,13 @@ function toPostType(value: string | null | undefined): PostType {
 }
 
 function toPostStatus(value: string | null | undefined): PostStatus {
-  return value === "scheduled" || value === "draft" || value === "published" || value === "backlog"
+  return value === "backlog" ||
+    value === "draft" ||
+    value === "approved" ||
+    value === "scheduled" ||
+    value === "publishing" ||
+    value === "published" ||
+    value === "failed"
     ? value
     : "draft"
 }
@@ -131,10 +140,13 @@ function toInputDate(d: Date) {
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
 const tabs: { key: PostStatus; label: string; icon: React.ElementType }[] = [
-  { key: "scheduled", label: "Agendados",  icon: Clock        },
+  { key: "backlog",   label: "Ideias",     icon: Inbox        },
   { key: "draft",     label: "Rascunhos",  icon: Edit3        },
+  { key: "approved",  label: "Aprovados",  icon: CheckCircle2 },
+  { key: "scheduled", label: "Agendados",  icon: Clock        },
+  { key: "publishing", label: "Publicando", icon: Send         },
   { key: "published", label: "Publicados", icon: CheckCircle2 },
-  { key: "backlog",   label: "Backlog",    icon: Inbox        },
+  { key: "failed",    label: "Falhas",     icon: AlertTriangle },
 ]
 
 // ─── Mapeamento Supabase → Post local ─────────────────────────────────────────
@@ -149,6 +161,7 @@ function dbRowToPost(row: SupabasePostRow): Post {
     likes: getMetricValue(row.metrics, "likes"),
     comments: getMetricValue(row.metrics, "comments"),
     shares: getMetricValue(row.metrics, "shares"),
+    mediaUrl: row.media_url,
   }
 }
 
@@ -163,6 +176,7 @@ function NewPostModal({ onClose, onAdd }: NewPostModalProps) {
   const [type, setType] = useState<PostType>("Post")
   const [status, setStatus] = useState<PostStatus>("draft")
   const [date, setDate] = useState("")
+  const [mediaUrl, setMediaUrl] = useState("")
   const [saving, setSaving] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -170,7 +184,7 @@ function NewPostModal({ onClose, onAdd }: NewPostModalProps) {
     if (!caption.trim()) return
     setSaving(true)
     try {
-      await onAdd({ caption, type, status, date })
+      await onAdd({ caption, type, status, date, mediaUrl: mediaUrl.trim() || null })
       onClose()
     } finally {
       setSaving(false)
@@ -240,10 +254,37 @@ function NewPostModal({ onClose, onAdd }: NewPostModalProps) {
               >
                 <option value="scheduled">Agendado</option>
                 <option value="draft">Rascunho</option>
+                <option value="approved">Aprovado</option>
                 <option value="published">Publicado</option>
+                <option value="publishing">Publicando</option>
                 <option value="backlog">Backlog</option>
+                <option value="failed">Falhou</option>
               </select>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted-foreground)]">
+              <ImageIcon size={12} />
+              URL da mídia
+              <span className="ml-1 text-[10px] opacity-60">(opcional)</span>
+            </label>
+            <input
+              type="url"
+              value={mediaUrl}
+              onChange={(e) => setMediaUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--secondary)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30"
+            />
+            {mediaUrl.trim() && (
+              <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--secondary)]">
+                <img
+                  src={mediaUrl.trim()}
+                  alt="Preview da mídia"
+                  className="aspect-video w-full object-cover"
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -279,11 +320,14 @@ function NewPostModal({ onClose, onAdd }: NewPostModalProps) {
 function PostCard({ post, onDelete }: { post: Post; onDelete: (id: string) => void }) {
   const TypeIcon = typeIcons[post.type]
 
-  const statusConfig: Record<PostStatus, { label: string; badgeVariant: "success" | "warning" | "secondary" | "default" }> = {
-    scheduled: { label: "Agendado",  badgeVariant: "success"   },
-    draft:     { label: "Rascunho",  badgeVariant: "warning"   },
-    published: { label: "Publicado", badgeVariant: "default"   },
-    backlog:   { label: "Backlog",   badgeVariant: "secondary" },
+  const statusConfig: Record<PostStatus, { label: string; badgeVariant: "success" | "warning" | "secondary" | "default" | "destructive" }> = {
+    backlog:    { label: "Ideia",      badgeVariant: "secondary"   },
+    draft:      { label: "Rascunho",   badgeVariant: "warning"     },
+    approved:   { label: "Aprovado",   badgeVariant: "success"     },
+    scheduled:  { label: "Agendado",   badgeVariant: "success"     },
+    publishing: { label: "Publicando", badgeVariant: "warning"     },
+    published:  { label: "Publicado",  badgeVariant: "default"     },
+    failed:     { label: "Falhou",     badgeVariant: "destructive" },
   }
 
   const s = statusConfig[post.status]
@@ -305,6 +349,16 @@ function PostCard({ post, onDelete }: { post: Post; onDelete: (id: string) => vo
       </div>
 
       <p className="line-clamp-2 text-sm leading-relaxed text-[var(--foreground)]">{post.caption}</p>
+
+      {post.mediaUrl && (
+        <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--secondary)]">
+          <img
+            src={post.mediaUrl}
+            alt="Mídia planejada"
+            className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]"
+          />
+        </div>
+      )}
 
       {post.status === "published" && (
         <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
@@ -424,6 +478,7 @@ export default function InstagramPage() {
       platform:     "instagram",
       type:         post.type.toLowerCase(),
       status:       post.status,
+      media_url:    post.mediaUrl ?? null,
       scheduled_at: scheduledAt,
       published_at: publishedAt,
     }).select().single()
@@ -442,10 +497,13 @@ export default function InstagramPage() {
   const filtered = posts.filter((p) => p.status === activeTab)
 
   const counts: Record<PostStatus, number> = {
+    backlog:   posts.filter((p) => p.status === "backlog").length,
     scheduled: posts.filter((p) => p.status === "scheduled").length,
     draft:     posts.filter((p) => p.status === "draft").length,
+    approved:  posts.filter((p) => p.status === "approved").length,
+    publishing: posts.filter((p) => p.status === "publishing").length,
     published: posts.filter((p) => p.status === "published").length,
-    backlog:   posts.filter((p) => p.status === "backlog").length,
+    failed:    posts.filter((p) => p.status === "failed").length,
   }
 
   const publishedPosts = posts.filter((p) => p.status === "published")

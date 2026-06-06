@@ -52,7 +52,7 @@ Plans:
 
 **Requirements:** CONTENT-01, CONTENT-02, CONTENT-03, CONTENT-04, CONTENT-05, QUAL-01, QUAL-02, QUAL-04
 **UI hint:** yes
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Success criteria:
 1. Posts support media metadata or URL fields needed for Instagram publishing.
@@ -62,7 +62,10 @@ Success criteria:
 5. Failure states are persisted and visible to the user.
 
 Plans:
-- [ ] TBD
+- [x] 03-01: Expose media URL capture and post preview
+- [x] 03-02: Expand local post lifecycle states
+- [x] 03-03: Apply Supabase lifecycle constraint migration
+- [ ] 03-04: Implement official Meta publish/sync action when permissions are ready
 
 ### Phase 4: Real Metrics And Reporting
 

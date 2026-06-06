@@ -7,9 +7,9 @@ last_updated: "2026-06-02T12:15:35.518Z"
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 15
-  completed_plans: 12
-  percent: 80
+  total_plans: 19
+  completed_plans: 15
+  percent: 79
 ---
 
 # Project State
@@ -17,9 +17,9 @@ progress:
 ## Status
 
 status: active
-current_phase: 5
-progress: 80%
-plan_of: 4
+current_phase: 3
+progress: 79%
+plan_of: 3
 plans_total: 4
 
 ## Project Reference
@@ -27,15 +27,15 @@ plans_total: 4
 See: `.planning/PROJECT.md` (updated 2026-05-31)
 
 **Core value:** Você consegue planejar, publicar/sincronizar e analisar o seu Instagram real sem depender de dados fake ou branding herdado do projeto original.
-**Current focus:** Phase 5 — Growth And Competitor Operations
+**Current focus:** Phase 3 — Real Content Manager
 
 ## Current Phase
 
-### Phase 5: Growth And Competitor Operations
+### Phase 3: Real Content Manager
 
-**Goal:** Make Growth Lab and Competitor Tracker operational for the user's real profile instead of one-off UI surfaces.
+**Goal:** Upgrade Instagram Manager from basic post CRUD to a practical content workflow with media, preview and publish/sync lifecycle.
 
-**Requirements:** COMP-01, COMP-02, COMP-03, ANALYTICS-01, ANALYTICS-02, ANALYTICS-03
+**Requirements:** CONTENT-01, CONTENT-02, CONTENT-03, CONTENT-04, CONTENT-05, QUAL-01, QUAL-02, QUAL-04
 
 ## Progress
 
@@ -49,7 +49,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-31)
 - Phase 5 is implemented locally: Growth Lab can persist recent experiments; Competitor Tracker can write snapshots, compute deltas from snapshot history and copy a Markdown report.
 - Supabase remote received migration `20260606132000_create_growth_and_competitor_history.sql`.
 - Local validation passed after Phase 5 with `npm run lint`, `npm run build` and `npm run e2e`.
-- Next autonomous steps: commit/deploy Phase 5, then continue with Phase 3 Content Manager or Phase 6 source curation depending on priority.
+- Phase 3 local manager work is implemented locally: Instagram Manager now accepts `media_url`, shows media preview, and supports expanded lifecycle states (`backlog`, `draft`, `approved`, `scheduled`, `publishing`, `published`, `failed`).
+- Supabase remote received migration `20260606133500_expand_post_lifecycle_status.sql`.
+- Local validation passed after Phase 3 with `npm run lint`, `npm run build` and `npm run e2e`.
+- Remaining Phase 3 gap: official Meta publish/sync action still depends on ready permissions and a deliberate API flow.
 
 ## Notes
 
@@ -61,4 +64,4 @@ See: `.planning/PROJECT.md` (updated 2026-05-31)
 ---
 *Last updated: 2026-06-06 during autonomous GSD execution*
 
-**Active Phase:** 5 (Growth And Competitor Operations) — all 4 plans implemented and validated locally
+**Active Phase:** 3 (Real Content Manager) — plans 03-01 through 03-03 implemented and validated; 03-04 remains

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Check, Copy, FileText, Loader2, Plus, Sparkles } from "lucide-react"
+import { Check, Copy, FileText, History, Loader2, Plus, Save, Sparkles } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import {
   growthPrompts,
   type GrowthPromptInputKey,
 } from "@/lib/growth-prompts"
+import type { Json, Tables } from "@/lib/database.types"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 
@@ -45,6 +46,8 @@ type InstagramTokenRow = {
   instagram_username: string | null
 }
 
+type GrowthExperimentRow = Tables<"growth_experiments">
+
 function normalizeHandle(value: string | null | undefined) {
   const trimmed = value?.trim().replace(/^@/, "")
   return trimmed ? `@${trimmed}` : ""
@@ -68,6 +71,31 @@ function buildUserBrief(profile: ProfileRow | null, instagram: InstagramTokenRow
   }
 }
 
+function parseExperimentInput(value: Json): Partial<Record<GrowthPromptInputKey, string>> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {}
+  }
+
+  const source = value as Record<string, Json>
+  return Object.keys(initialInput).reduce<Partial<Record<GrowthPromptInputKey, string>>>((acc, key) => {
+    const fieldKey = key as GrowthPromptInputKey
+    const fieldValue = source[fieldKey]
+    if (typeof fieldValue === "string") {
+      acc[fieldKey] = fieldValue
+    }
+    return acc
+  }, {})
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value))
+}
+
 export default function GrowthLabPage() {
   const [activeId, setActiveId] = useState(growthPrompts[0].id)
   const [input, setInput] = useState<Record<GrowthPromptInputKey, string>>({
@@ -77,6 +105,11 @@ export default function GrowthLabPage() {
   const [copied, setCopied] = useState(false)
   const [loadingContext, setLoadingContext] = useState(true)
   const [userBrief, setUserBrief] = useState<Record<GrowthPromptInputKey, string> | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [history, setHistory] = useState<GrowthExperimentRow[]>([])
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [savingExperiment, setSavingExperiment] = useState(false)
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null)
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -86,6 +119,7 @@ export default function GrowthLabPage() {
   function updateField(key: GrowthPromptInputKey, value: string) {
     setInput((prev) => ({ ...prev, [key]: value }))
     setCopied(false)
+    setSaveFeedback(null)
   }
 
   async function copyPrompt() {
@@ -99,8 +133,9 @@ export default function GrowthLabPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+      setUserId(user.id)
 
-      const [{ data: profile }, { data: instagram }] = await Promise.all([
+      const [{ data: profile }, { data: instagram }, { data: experiments, error: experimentsError }] = await Promise.all([
         supabase
           .from("profiles")
           .select("name, handle, bio")
@@ -111,11 +146,24 @@ export default function GrowthLabPage() {
           .select("instagram_username")
           .eq("user_id", user.id)
           .maybeSingle(),
+        supabase
+          .from("growth_experiments")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5),
       ])
 
       const brief = buildUserBrief(profile, instagram)
       setUserBrief(brief)
       setInput((prev) => ({ ...prev, ...brief }))
+      if (experimentsError) {
+        setHistory([])
+        setHistoryError("Histórico indisponível até aplicar a migration `growth_experiments`.")
+      } else {
+        setHistory((experiments ?? []) as GrowthExperimentRow[])
+        setHistoryError(null)
+      }
       setCopied(false)
     } finally {
       setLoadingContext(false)
@@ -129,6 +177,49 @@ export default function GrowthLabPage() {
   function fillUserBrief() {
     setInput((prev) => ({ ...prev, ...(userBrief ?? defaultBriefValues) }))
     setCopied(false)
+    setSaveFeedback(null)
+  }
+
+  function restoreExperiment(experiment: GrowthExperimentRow) {
+    const matchingPrompt = growthPrompts.find((prompt) => prompt.id === experiment.prompt_id)
+    setActiveId(matchingPrompt?.id ?? growthPrompts[0].id)
+    setInput((prev) => ({ ...prev, ...parseExperimentInput(experiment.input) }))
+    setCopied(false)
+    setSaveFeedback("Experimento carregado no brief.")
+  }
+
+  async function saveExperiment() {
+    if (!userId) {
+      setSaveFeedback("Faça login para salvar experimentos.")
+      return
+    }
+
+    setSavingExperiment(true)
+    setSaveFeedback(null)
+    try {
+      const { data, error } = await supabase
+        .from("growth_experiments")
+        .insert({
+          user_id: userId,
+          prompt_id: activePrompt.id,
+          prompt_title: activePrompt.title,
+          input: input as unknown as Json,
+          generated_prompt: generatedPrompt,
+        })
+        .select()
+        .single()
+
+      if (error || !data) {
+        setSaveFeedback("Não foi possível salvar. Verifique se a migration `growth_experiments` foi aplicada.")
+        return
+      }
+
+      setHistory((prev) => [data as GrowthExperimentRow, ...prev].slice(0, 5))
+      setHistoryError(null)
+      setSaveFeedback("Experimento salvo no histórico.")
+    } finally {
+      setSavingExperiment(false)
+    }
   }
 
   return (
@@ -153,6 +244,10 @@ export default function GrowthLabPage() {
               <Button type="button" variant="outline" size="sm" onClick={fillUserBrief} disabled={loadingContext}>
                 {loadingContext ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
                 {loadingContext ? "Carregando..." : "Usar meus dados"}
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={saveExperiment} disabled={savingExperiment}>
+                {savingExperiment ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {savingExperiment ? "Salvando..." : "Salvar experimento"}
               </Button>
               <Button asChild size="sm">
                 <Link href="/instagram">
@@ -222,6 +317,45 @@ export default function GrowthLabPage() {
                 </div>
               </div>
             ))}
+
+            <div className="border-t border-[var(--border)] pt-4">
+              <div className="mb-2 flex items-center gap-2">
+                <History size={14} className="text-[var(--muted-foreground)]" />
+                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">
+                  Histórico salvo
+                </p>
+              </div>
+              {historyError ? (
+                <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
+                  {historyError}
+                </p>
+              ) : history.length === 0 ? (
+                <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
+                  Salve prompts bons para reaproveitar ângulos, hooks e briefs depois.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {history.map((experiment) => (
+                    <button
+                      key={experiment.id}
+                      type="button"
+                      onClick={() => restoreExperiment(experiment)}
+                      className="w-full rounded-lg border border-[var(--border)] bg-[var(--secondary)]/35 px-3 py-2 text-left transition-colors hover:border-[var(--primary)]/40"
+                    >
+                      <p className="truncate text-xs font-medium text-[var(--foreground)]">
+                        {experiment.prompt_title}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-[var(--muted-foreground)]">
+                        {formatDateTime(experiment.created_at)}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {saveFeedback && (
+                <p className="mt-2 text-xs text-[var(--muted-foreground)]">{saveFeedback}</p>
+              )}
+            </div>
           </CardContent>
         </Card>
       </section>

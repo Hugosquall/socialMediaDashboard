@@ -100,8 +100,8 @@ Success criteria:
 Plans:
 - [x] 05-01: Load real user/profile context into Growth Lab
 - [x] 05-02: Align Competitor Tracker comparison with user analytics
-- [ ] 05-03: Persist Growth Lab experiments/history
-- [ ] 05-04: Add competitor snapshots and report export
+- [x] 05-03: Persist Growth Lab experiments/history
+- [x] 05-04: Add competitor snapshots and report export
 
 ### Phase 6: AI Niche News Consolidator
 

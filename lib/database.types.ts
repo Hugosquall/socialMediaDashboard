@@ -12,6 +12,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      competitor_snapshots: {
+        Row: {
+          avg_comments: number | null
+          avg_likes: number | null
+          captured_at: string
+          competitor_id: string
+          created_at: string
+          engagement_rate: number | null
+          followers: number | null
+          followers_delta: number | null
+          handle: string
+          id: string
+          notes: string | null
+          platform: string
+          posts_per_week: number | null
+          user_id: string
+        }
+        Insert: {
+          avg_comments?: number | null
+          avg_likes?: number | null
+          captured_at?: string
+          competitor_id: string
+          created_at?: string
+          engagement_rate?: number | null
+          followers?: number | null
+          followers_delta?: number | null
+          handle: string
+          id?: string
+          notes?: string | null
+          platform: string
+          posts_per_week?: number | null
+          user_id: string
+        }
+        Update: {
+          avg_comments?: number | null
+          avg_likes?: number | null
+          captured_at?: string
+          competitor_id?: string
+          created_at?: string
+          engagement_rate?: number | null
+          followers?: number | null
+          followers_delta?: number | null
+          handle?: string
+          id?: string
+          notes?: string | null
+          platform?: string
+          posts_per_week?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       competitors: {
         Row: {
           avg_engagement: number | null
@@ -57,6 +108,39 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           youtube_handle?: string | null
+        }
+        Relationships: []
+      }
+      growth_experiments: {
+        Row: {
+          created_at: string
+          generated_prompt: string
+          id: string
+          input: Json
+          prompt_id: string
+          prompt_title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generated_prompt: string
+          id?: string
+          input?: Json
+          prompt_id: string
+          prompt_title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generated_prompt?: string
+          id?: string
+          input?: Json
+          prompt_id?: string
+          prompt_title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -264,3 +348,5 @@ export type Post           = Tables<"posts">
 export type Competitor     = Tables<"competitors">
 export type InstagramToken = Tables<"instagram_tokens">
 export type NotificationRecord = Tables<"notifications">
+export type GrowthExperiment = Tables<"growth_experiments">
+export type CompetitorSnapshot = Tables<"competitor_snapshots">

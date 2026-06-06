@@ -6,10 +6,10 @@ status: active
 last_updated: "2026-06-02T12:15:35.518Z"
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 15
-  completed_plans: 10
-  percent: 67
+  completed_plans: 12
+  percent: 80
 ---
 
 # Project State
@@ -17,25 +17,25 @@ progress:
 ## Status
 
 status: active
-current_phase: 2
-progress: 67%
-plan_of: 3
-plans_total: 3
+current_phase: 5
+progress: 80%
+plan_of: 4
+plans_total: 4
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-05-31)
 
 **Core value:** Você consegue planejar, publicar/sincronizar e analisar o seu Instagram real sem depender de dados fake ou branding herdado do projeto original.
-**Current focus:** Phase 2 — Instagram Connection Hardening
+**Current focus:** Phase 5 — Growth And Competitor Operations
 
 ## Current Phase
 
-### Phase 2: Instagram Connection Hardening
+### Phase 5: Growth And Competitor Operations
 
-**Goal:** Make Instagram account connection production-ready enough for the user's own profile, with clear status, expiry handling and failure guidance.
+**Goal:** Make Growth Lab and Competitor Tracker operational for the user's real profile instead of one-off UI surfaces.
 
-**Requirements:** IG-01, IG-02, IG-03, IG-04, QUAL-01, QUAL-02, QUAL-04
+**Requirements:** COMP-01, COMP-02, COMP-03, ANALYTICS-01, ANALYTICS-02, ANALYTICS-03
 
 ## Progress
 
@@ -46,7 +46,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-31)
 - Instagram token status classification was extracted to `lib/instagram-token-status.ts` for reuse without live Meta calls.
 - Local validation passed after Phase 2 with `npm run lint`, `npm run build` and `npm run e2e`.
 - Playwright was isolated to port `3210` so E2E no longer reuses an unrelated app on `localhost:3000`.
-- Next autonomous steps: commit/deploy Phase 2, then move to the remaining Growth/Competitor persistence work.
+- Phase 5 is implemented locally: Growth Lab can persist recent experiments; Competitor Tracker can write snapshots, compute deltas from snapshot history and copy a Markdown report.
+- Supabase remote received migration `20260606132000_create_growth_and_competitor_history.sql`.
+- Local validation passed after Phase 5 with `npm run lint`, `npm run build` and `npm run e2e`.
+- Next autonomous steps: commit/deploy Phase 5, then continue with Phase 3 Content Manager or Phase 6 source curation depending on priority.
 
 ## Notes
 
@@ -58,4 +61,4 @@ See: `.planning/PROJECT.md` (updated 2026-05-31)
 ---
 *Last updated: 2026-06-06 during autonomous GSD execution*
 
-**Active Phase:** 2 (Instagram Connection Hardening) — all 3 plans implemented and validated locally
+**Active Phase:** 5 (Growth And Competitor Operations) — all 4 plans implemented and validated locally

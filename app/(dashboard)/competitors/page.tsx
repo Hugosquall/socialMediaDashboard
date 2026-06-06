@@ -25,10 +25,11 @@ import {
   X,
   MessageCircle,
   Loader2,
+  Copy,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { AnalyticsResponse } from "@/app/api/analytics/route"
-import type { Tables } from "@/lib/database.types"
+import type { Tables, TablesInsert } from "@/lib/database.types"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,8 @@ interface ActionFeedback {
 }
 
 type CompetitorRow = Tables<"competitors">
+type CompetitorSnapshotRow = Tables<"competitor_snapshots">
+type CompetitorSnapshotInsert = TablesInsert<"competitor_snapshots">
 
 interface UserBenchmark {
   followers: number
@@ -269,26 +272,60 @@ function createAccount(
   platform: Platform,
   handle: string,
   followers?: number | null,
-  engagementRate?: number | null
+  engagementRate?: number | null,
+  snapshot?: CompetitorSnapshotRow | null,
+  previousSnapshot?: CompetitorSnapshotRow | null
 ): SocialAccount {
-  const normalizedFollowers = Math.max(followers ?? 0, 0)
-  const normalizedEngagement = Math.max(engagementRate ?? 0, 0)
+  const normalizedFollowers = Math.max(snapshot?.followers ?? followers ?? 0, 0)
+  const normalizedEngagement = Math.max(snapshot?.engagement_rate ?? engagementRate ?? 0, 0)
+  const followersDelta = snapshot?.followers_delta
+    ?? (
+      snapshot?.followers != null && previousSnapshot?.followers != null
+        ? snapshot.followers - previousSnapshot.followers
+        : 0
+    )
+  const snapshotTrend = snapshot && previousSnapshot
+    ? [previousSnapshot.engagement_rate ?? 0, snapshot.engagement_rate ?? 0]
+    : null
 
   return {
     platform,
     handle: normalizeHandle(platform, handle),
     followers: normalizedFollowers,
-    followersDelta: 0,
+    followersDelta,
     engagementRate: normalizedEngagement,
-    postsPerWeek: 0,
-    avgLikes: 0,
-    avgComments: 0,
+    postsPerWeek: Math.max(snapshot?.posts_per_week ?? 0, 0),
+    avgLikes: Math.max(snapshot?.avg_likes ?? 0, 0),
+    avgComments: Math.max(snapshot?.avg_comments ?? 0, 0),
     lastPostHours: -1,
-    trend: flatTrend(normalizedEngagement),
+    trend: snapshotTrend ?? flatTrend(normalizedEngagement),
   }
 }
 
-function dbRowToCompetitor(row: CompetitorRow): Competitor {
+function findLatestSnapshots(
+  snapshots: CompetitorSnapshotRow[],
+  platform: Platform
+): [CompetitorSnapshotRow | null, CompetitorSnapshotRow | null] {
+  const platformSnapshots = snapshots
+    .filter((snapshot) => snapshot.platform === platform)
+    .sort((a, b) => new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime())
+
+  return [platformSnapshots[0] ?? null, platformSnapshots[1] ?? null]
+}
+
+function groupSnapshotsByCompetitor(
+  snapshots: CompetitorSnapshotRow[]
+): Map<string, CompetitorSnapshotRow[]> {
+  const grouped = new Map<string, CompetitorSnapshotRow[]>()
+  for (const snapshot of snapshots) {
+    const list = grouped.get(snapshot.competitor_id) ?? []
+    list.push(snapshot)
+    grouped.set(snapshot.competitor_id, list)
+  }
+  return grouped
+}
+
+function dbRowToCompetitor(row: CompetitorRow, snapshots: CompetitorSnapshotRow[] = []): Competitor {
   const accounts: SocialAccount[] = []
   const platforms: Platform[] = ["instagram", "tiktok", "twitter", "youtube"]
   const handles: Record<Platform, string | null> = {
@@ -301,13 +338,16 @@ function dbRowToCompetitor(row: CompetitorRow): Competitor {
   for (const p of platforms) {
     const handle = handles[p]
     if (!handle) continue
+    const [latestSnapshot, previousSnapshot] = findLatestSnapshots(snapshots, p)
 
     accounts.push(
       createAccount(
         p,
         handle,
         p === "instagram" ? row.followers : null,
-        p === "instagram" ? row.avg_engagement : null
+        p === "instagram" ? row.avg_engagement : null,
+        latestSnapshot,
+        previousSnapshot
       )
     )
   }
@@ -364,6 +404,69 @@ function generateAlerts(competitors: Competitor[]): Alert[] {
     }
   }
   return alerts
+}
+
+function buildSnapshotInserts(
+  userId: string,
+  competitor: Competitor,
+  capturedAt = new Date()
+): CompetitorSnapshotInsert[] {
+  return competitor.accounts.map((account) => ({
+    user_id: userId,
+    competitor_id: competitor.id,
+    platform: account.platform,
+    handle: account.handle,
+    followers: account.followers,
+    followers_delta: account.followersDelta,
+    engagement_rate: account.engagementRate,
+    posts_per_week: account.postsPerWeek,
+    avg_likes: account.avgLikes,
+    avg_comments: account.avgComments,
+    captured_at: capturedAt.toISOString(),
+  }))
+}
+
+function buildCompetitorReport(
+  competitors: Competitor[],
+  userBenchmark: UserBenchmark,
+  sourceLabel: string
+): string {
+  const lines = [
+    "# Relatório de Concorrentes",
+    "",
+    `Gerado em: ${new Date().toLocaleString("pt-BR")}`,
+    `Fonte do seu benchmark: ${sourceLabel}`,
+    "",
+    "## Seu perfil",
+    "",
+    `- Seguidores: ${fmtNum(userBenchmark.followers)}`,
+    `- Engajamento médio: ${userBenchmark.engagementRate.toFixed(1)}%`,
+    `- Posts/semana: ${userBenchmark.postsPerWeek}`,
+    "",
+    "## Concorrentes",
+    "",
+  ]
+
+  if (competitors.length === 0) {
+    lines.push("Nenhum concorrente ativo cadastrado.")
+    return lines.join("\n")
+  }
+
+  for (const competitor of competitors) {
+    lines.push(`### ${competitor.name}`)
+    lines.push(`- Seguidores totais: ${fmtNum(totalFollowers(competitor))}`)
+    lines.push(`- Engajamento médio: ${avgEngagement(competitor).toFixed(1)}%`)
+    lines.push(`- Posts/semana: ${totalPostsPerWeek(competitor)}`)
+    lines.push(`- Delta seguidores: ${fmtDelta(totalDelta(competitor))}`)
+    for (const account of competitor.accounts) {
+      lines.push(
+        `  - ${PLATFORM_CONFIG[account.platform].label} ${account.handle}: ${fmtNum(account.followers)} seguidores, ${account.engagementRate.toFixed(1)}% engajamento`
+      )
+    }
+    lines.push("")
+  }
+
+  return lines.join("\n")
 }
 
 // ─── Sort Icon ────────────────────────────────────────────────────────────────
@@ -643,6 +746,7 @@ export default function CompetitorsPage() {
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all")
   const [expanded, setExpanded]       = useState<Set<string>>(new Set())
   const [feedback, setFeedback]       = useState<ActionFeedback | null>(null)
+  const [reportCopied, setReportCopied] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -675,7 +779,28 @@ export default function CompetitorsPage() {
       }
 
       if (data) {
-        setCompetitors(data.map(dbRowToCompetitor))
+        const competitorIds = data.map((row) => row.id)
+        let snapshotsByCompetitor = new Map<string, CompetitorSnapshotRow[]>()
+
+        if (competitorIds.length > 0) {
+          const { data: snapshots, error: snapshotsError } = await supabase
+            .from("competitor_snapshots")
+            .select("*")
+            .eq("user_id", user.id)
+            .in("competitor_id", competitorIds)
+            .order("captured_at", { ascending: false })
+
+          if (snapshotsError) {
+            setFeedback({
+              kind: "error",
+              message: "Snapshots indisponíveis até aplicar a migration `competitor_snapshots`.",
+            })
+          } else {
+            snapshotsByCompetitor = groupSnapshotsByCompetitor((snapshots ?? []) as CompetitorSnapshotRow[])
+          }
+        }
+
+        setCompetitors(data.map((row) => dbRowToCompetitor(row, snapshotsByCompetitor.get(row.id) ?? [])))
       }
     } finally {
       setLoading(false)
@@ -814,10 +939,24 @@ export default function CompetitorsPage() {
       }
 
       // Usa o ID real do banco
-      setCompetitors((prev) => [{ ...c, id: data.id }, ...prev])
+      const savedCompetitor = { ...c, id: data.id }
+      const { error: snapshotError } = await supabase
+        .from("competitor_snapshots")
+        .insert(buildSnapshotInserts(userId, savedCompetitor))
+
+      if (snapshotError) {
+        setFeedback({
+          kind: "error",
+          message: "Concorrente salvo, mas o snapshot inicial falhou. Aplique a migration `competitor_snapshots`.",
+        })
+      }
+
+      setCompetitors((prev) => [savedCompetitor, ...prev])
       setFeedback({
         kind: "success",
-        message: "Concorrente adicionado e salvo com sucesso.",
+        message: snapshotError
+          ? "Concorrente adicionado. Snapshot pendente até aplicar a migration."
+          : "Concorrente adicionado com snapshot inicial.",
       })
     } catch (error) {
       const message =
@@ -864,6 +1003,40 @@ export default function CompetitorsPage() {
       kind: "success",
       message: "Concorrente removido com sucesso.",
     })
+  }
+
+  async function captureSnapshotsForCompetitor(competitor: Competitor) {
+    if (!userId) {
+      setFeedback({
+        kind: "error",
+        message: "Não foi possível registrar snapshot agora. Usuário não autenticado.",
+      })
+      return
+    }
+
+    const { error } = await supabase
+      .from("competitor_snapshots")
+      .insert(buildSnapshotInserts(userId, competitor))
+
+    if (error) {
+      setFeedback({
+        kind: "error",
+        message: "Não foi possível registrar snapshot. Aplique a migration `competitor_snapshots`.",
+      })
+      return
+    }
+
+    await loadCompetitors()
+    setFeedback({
+      kind: "success",
+      message: `Snapshot registrado para ${competitor.name}.`,
+    })
+  }
+
+  async function copyCompetitorReport() {
+    await navigator.clipboard.writeText(buildCompetitorReport(filtered, userBenchmark, userSourceLabel))
+    setReportCopied(true)
+    window.setTimeout(() => setReportCopied(false), 1800)
   }
 
   const platforms: Platform[] = ["instagram", "tiktok", "twitter", "youtube"]
@@ -962,6 +1135,14 @@ export default function CompetitorsPage() {
                 className="bg-[var(--secondary)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
               >
                 <RefreshCw size={13} />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => { void copyCompetitorReport() }}
+              >
+                <Copy size={13} />
+                {reportCopied ? "Copiado" : "Relatório"}
               </Button>
               <Button size="sm" onClick={() => setShowModal(true)}>
                 <Plus size={14} />
@@ -1196,6 +1377,13 @@ export default function CompetitorsPage() {
                         className="col-span-1 flex justify-end"
                         onClick={(e) => e.stopPropagation()}
                       >
+                        <button
+                          onClick={() => { void captureSnapshotsForCompetitor(comp) }}
+                          className="rounded p-1 text-[var(--muted-foreground)] opacity-0 transition-all hover:text-[var(--primary)] group-hover:opacity-100"
+                          title="Registrar snapshot"
+                        >
+                          <BarChart3 size={13} />
+                        </button>
                         <button
                           onClick={() => { void removeCompetitor(comp.id) }}
                           className="rounded p-1 text-[var(--muted-foreground)] opacity-0 transition-all hover:text-red-400 group-hover:opacity-100"

@@ -7,15 +7,25 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
+import { getInstagramTokenStatus, type InstagramTokenState } from "@/lib/instagram-token-status"
 import { createClient } from "@/lib/supabase/server"
 
 type MetricoolSourcesResponse = {
   instagram: boolean
   metricool: boolean
+  instagramStatus: InstagramSourceStatus
 }
 
 type MetricoolSourceBody = {
   metricoolApiKey?: string | null
+}
+
+type InstagramSourceStatus = {
+  connected: boolean
+  username: string | null
+  expiresAt: string | null
+  expiresInDays: number | null
+  tokenState: InstagramTokenState
 }
 
 function getMetricoolApiKey(metadata: unknown): string | null {
@@ -41,20 +51,41 @@ export async function GET(): Promise<
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    let instagram = false
+    let instagramStatus: InstagramSourceStatus = {
+      connected: false,
+      username: null,
+      expiresAt: null,
+      expiresInDays: null,
+      tokenState: "disconnected",
+    }
+
     if (user) {
       const { data } = await supabase
         .from("instagram_tokens")
-        .select("id")
+        .select("instagram_username, expires_at")
         .eq("user_id", user.id)
-        .single()
-      instagram = !!data
+        .maybeSingle()
+
+      if (data) {
+        const tokenState = getInstagramTokenStatus(data.expires_at)
+        instagramStatus = {
+          connected: true,
+          username: data.instagram_username,
+          expiresAt: data.expires_at,
+          expiresInDays: tokenState.expiresInDays,
+          tokenState: tokenState.tokenState,
+        }
+      }
     }
 
     const userMetricoolApiKey = getMetricoolApiKey(user?.user_metadata)
     const metricool = userMetricoolApiKey !== null || !!process.env.METRICOOL_API_KEY?.trim()
 
-    return NextResponse.json({ instagram, metricool })
+    return NextResponse.json({
+      instagram: instagramStatus.connected,
+      metricool,
+      instagramStatus,
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Falha ao carregar fontes"
     return NextResponse.json({ error: message }, { status: 500 })

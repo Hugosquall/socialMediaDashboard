@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import {
   buildSeedNotifications,
   listUserNotifications,
+  syncInstagramTokenExpiryNotification,
 } from "./_shared"
 import {
   jsonError,
@@ -22,6 +23,7 @@ export async function GET() {
   }
 
   try {
+    await syncInstagramTokenExpiryNotification(supabase, user.id)
     const notifications = await listUserNotifications(supabase, user.id)
     return NextResponse.json({ notifications })
   } catch (error) {

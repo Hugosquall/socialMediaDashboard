@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test"
 
-const baseURL = "http://localhost:3000"
+const e2ePort = process.env.E2E_PORT ?? "3210"
+const baseURL = `http://localhost:${e2ePort}`
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -13,9 +14,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "npm run dev",
+    command: `npm run dev -- -p ${e2ePort}`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: process.env.E2E_REUSE_SERVER === "1",
     timeout: 120_000,
     stdout: "pipe",
     stderr: "pipe",

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import type { Database } from "@/lib/database.types"
+import { getInstagramTokenStatus } from "@/lib/instagram-token-status"
 
 export type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"]
 export type NotificationInsert = Database["public"]["Tables"]["notifications"]["Insert"]
@@ -30,6 +31,11 @@ type NotificationSeedItem = {
 
 export const notificationColumns =
   "id,user_id,type,category,title,body,time_label,read_at,dismissed_at,created_at,updated_at" as const
+
+const instagramTokenNotificationTitles = [
+  "Token do Instagram expira em breve",
+  "Token do Instagram expirou",
+] as const
 
 export const seedNotifications: NotificationSeedItem[] = [
   {
@@ -195,4 +201,130 @@ export async function listUserNotifications(
   }
 
   return mapNotificationRows((data ?? []) as NotificationRow[])
+}
+
+function buildInstagramTokenNotification(
+  userId: string,
+  instagramUsername: string | null,
+  expiresAt: string | null,
+  now = new Date()
+): NotificationInsert | null {
+  const status = getInstagramTokenStatus(expiresAt, now.getTime())
+  const username = instagramUsername ? `@${instagramUsername}` : "Sua conta do Instagram"
+  const timestamp = now.toISOString()
+
+  if (status.tokenState === "expired") {
+    return {
+      user_id: userId,
+      type: "alert",
+      category: "system",
+      title: "Token do Instagram expirou",
+      body: `${username} precisa ser reconectada para voltar a atualizar dados reais no dashboard.`,
+      time_label: "agora",
+      read_at: null,
+      dismissed_at: null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    }
+  }
+
+  if (status.tokenState === "expiring") {
+    const days = status.expiresInDays ?? 0
+    return {
+      user_id: userId,
+      type: "alert",
+      category: "system",
+      title: "Token do Instagram expira em breve",
+      body: `${username} deve ser reconectada em ${days} dia${days === 1 ? "" : "s"} para manter os dados reais atualizados.`,
+      time_label: "agora",
+      read_at: null,
+      dismissed_at: null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    }
+  }
+
+  return null
+}
+
+export async function syncInstagramTokenExpiryNotification(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  now = new Date()
+): Promise<void> {
+  const { data: token, error: tokenError } = await supabase
+    .from("instagram_tokens")
+    .select("instagram_username, expires_at")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (tokenError) {
+    throw new Error(tokenError.message)
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("notifications")
+    .select(notificationColumns)
+    .eq("user_id", userId)
+    .eq("category", "system")
+    .eq("type", "alert")
+    .in("title", [...instagramTokenNotificationTitles])
+    .is("dismissed_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (existingError) {
+    throw new Error(existingError.message)
+  }
+
+  const notification = token
+    ? buildInstagramTokenNotification(userId, token.instagram_username, token.expires_at, now)
+    : null
+
+  if (!notification) {
+    if (existing) {
+      const { error } = await supabase
+        .from("notifications")
+        .update({
+          dismissed_at: now.toISOString(),
+          updated_at: now.toISOString(),
+        })
+        .eq("id", existing.id)
+        .eq("user_id", userId)
+
+      if (error) {
+        throw new Error(error.message)
+      }
+    }
+    return
+  }
+
+  if (existing) {
+    const { error } = await supabase
+      .from("notifications")
+      .update({
+        title: notification.title,
+        body: notification.body,
+        time_label: notification.time_label,
+        read_at: null,
+        dismissed_at: null,
+        updated_at: now.toISOString(),
+      })
+      .eq("id", existing.id)
+      .eq("user_id", userId)
+
+    if (error) {
+      throw new Error(error.message)
+    }
+    return
+  }
+
+  const { error } = await supabase
+    .from("notifications")
+    .insert(notification)
+
+  if (error) {
+    throw new Error(error.message)
+  }
 }

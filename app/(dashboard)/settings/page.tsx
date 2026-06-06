@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import type { InstagramTokenState } from "@/lib/instagram-token-status"
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,20 @@ type TokenFeedback = {
   message: string
 } | null
 
+type InstagramStatus = {
+  connected: boolean
+  username: string | null
+  expiresAt: string | null
+  expiresInDays: number | null
+  tokenState: InstagramTokenState
+}
+
+type AnalyticsSourcesResponse = {
+  instagram: boolean
+  metricool: boolean
+  instagramStatus?: InstagramStatus
+}
+
 function maskTokenForDisplay(token: string): string {
   if (token.length <= 8) {
     return "********"
@@ -90,6 +105,36 @@ function maskTokenForDisplay(token: string): string {
   const middleLength = Math.max(8, token.length - prefix.length - suffix.length)
 
   return `${prefix}${"*".repeat(middleLength)}${suffix}`
+}
+
+function defaultInstagramStatus(): InstagramStatus {
+  return {
+    connected: false,
+    username: null,
+    expiresAt: null,
+    expiresInDays: null,
+    tokenState: "disconnected",
+  }
+}
+
+function formatInstagramTokenStatus(status: InstagramStatus): string {
+  if (!status.connected) {
+    return "Instagram ainda não conectado."
+  }
+
+  const username = status.username ? `@${status.username}` : "conta conectada"
+
+  if (status.tokenState === "expired") {
+    return `${username} conectada, mas o token expirou. Reconecte o Instagram.`
+  }
+  if (status.tokenState === "expiring") {
+    return `${username} conectada. Token expira em ${status.expiresInDays} dia${status.expiresInDays === 1 ? "" : "s"}.`
+  }
+  if (status.tokenState === "active" && status.expiresAt) {
+    return `${username} conectada. Token ativo até ${new Date(status.expiresAt).toLocaleDateString("pt-BR")}.`
+  }
+
+  return `${username} conectada. A Meta não retornou data de expiração do token.`
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -455,7 +500,7 @@ function ProfileTab() {
 // ─── Aba: Integrações ─────────────────────────────────────────────────────────
 
 function IntegrationsTab({ instagramJustConnected }: { instagramJustConnected?: boolean }) {
-  const [instagramUsername,   setInstagramUsername]   = useState<string | null>(null)
+  const [instagramStatus,     setInstagramStatus]     = useState<InstagramStatus>(defaultInstagramStatus)
   const [checkingInstagram,   setCheckingInstagram]   = useState(true)
   const [metricoolConnected,  setMetricoolConnected]  = useState(false)
   const [showMetricoolInput,  setShowMetricoolInput]  = useState(false)
@@ -465,38 +510,32 @@ function IntegrationsTab({ instagramJustConnected }: { instagramJustConnected?: 
 
   const supabase = createClient()
 
-  useEffect(() => {
-    async function checkInstagramToken() {
-      setCheckingInstagram(true)
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-        const { data } = await supabase
-          .from("instagram_tokens")
-          .select("instagram_username")
-          .eq("user_id", user.id)
-          .single()
-        if (data) setInstagramUsername(data.instagram_username)
-      } finally {
-        setCheckingInstagram(false)
-      }
+  const refreshSources = useCallback(async () => {
+    setCheckingInstagram(true)
+    try {
+      const response = await fetch("/api/analytics/sources", { cache: "no-store" })
+      if (!response.ok) return
+      const data = (await response.json()) as AnalyticsSourcesResponse
+      setInstagramStatus(data.instagramStatus ?? {
+        ...defaultInstagramStatus(),
+        connected: data.instagram === true,
+        tokenState: data.instagram ? "unknown" : "disconnected",
+      })
+      setMetricoolConnected(data.metricool === true)
+    } finally {
+      setCheckingInstagram(false)
     }
-    checkInstagramToken()
-  }, [supabase, instagramJustConnected])
-
-  // Verifica se Metricool está configurado consultando a API route de analytics
-  useEffect(() => {
-    fetch("/api/analytics/sources")
-      .then((r) => r.json())
-      .then((d) => setMetricoolConnected(d.metricool === true))
-      .catch(() => {/* silencioso */})
   }, [])
+
+  useEffect(() => {
+    refreshSources()
+  }, [refreshSources, instagramJustConnected])
 
   async function handleDisconnectInstagram() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     await supabase.from("instagram_tokens").delete().eq("user_id", user.id)
-    setInstagramUsername(null)
+    setInstagramStatus(defaultInstagramStatus())
   }
 
   async function handleSaveMetricool() {
@@ -525,20 +564,22 @@ function IntegrationsTab({ instagramJustConnected }: { instagramJustConnected?: 
     setMetricoolConnected(false)
   }
 
-  const instagramConnected = instagramUsername !== null
+  const instagramConnected = instagramStatus.connected
+  const instagramTokenNeedsAttention =
+    instagramStatus.tokenState === "expired" || instagramStatus.tokenState === "expiring"
 
   const integrations = [
     {
       name: "Instagram Graph API",
       description: instagramConnected
-        ? `Conta @${instagramUsername} conectada. Dados de performance e insights disponíveis.`
+        ? formatInstagramTokenStatus(instagramStatus)
         : "Conecte via Facebook Login para buscar a conta profissional vinculada a uma Página",
       Icon: Camera,
       iconBg: "bg-gradient-to-br from-pink-500 to-orange-400",
-      connected: instagramConnected,
+      connected: instagramConnected && instagramStatus.tokenState !== "expired",
       checking: checkingInstagram,
-      badge: "Recomendado",
-      badgeVariant: "default" as const,
+      badge: instagramTokenNeedsAttention ? "Atenção" : "Recomendado",
+      badgeVariant: instagramTokenNeedsAttention ? "warning" as const : "default" as const,
       docs: "https://developers.facebook.com/docs/instagram-api",
       onConnect: () => { window.location.href = "/api/auth/instagram" },
       onDisconnect: handleDisconnectInstagram,

@@ -8,6 +8,8 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   "/instagram": { title: "Instagram Manager", description: "Gerencie posts, stories e engajamento" },
   "/analytics": { title: "Analytics", description: "Métricas e performance de conteúdo" },
   "/growth-lab": { title: "Growth Lab", description: "Prompts para ideias, hooks, formatos e retenção" },
+  "/carousel": { title: "Carousel Builder", description: "Carrosséis editáveis, exportáveis e prontos para virar draft" },
+  "/brand-kit": { title: "Brand Kit", description: "Tom, CTA, cores e memória de conteúdo" },
   "/calendar": { title: "Content Calendar", description: "Planejamento e agendamento de conteúdo" },
   "/competitors": { title: "Competitor Tracker", description: "Compare perfis técnicos e criadores do seu nicho" },
   "/news": { title: "AI Dev Radar", description: "IA, engenharia, qualidade e ferramentas" },

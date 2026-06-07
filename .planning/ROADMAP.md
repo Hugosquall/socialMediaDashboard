@@ -123,6 +123,28 @@ Plans:
 - [x] 06-01: Replace construction/architecture sources and copy with AI Dev Radar
 - [ ] 06-02: Add source curation controls and saved article ideas
 
+### Phase 7: Content Intelligence Studio
+
+**Goal:** Transform the dashboard into a content intelligence studio that turns AI/software news into Growth Lab outputs, carousels and Instagram Manager drafts.
+
+**Requirements:** BRAND-01, CONTENT-01, CONTENT-02, CONTENT-03, ANALYTICS-01, QUAL-01, QUAL-02, QUAL-04
+**UI hint:** yes
+**Plans:** 5 plans
+
+Success criteria:
+1. App logo and browser favicon match the AI/dev/Instagram positioning.
+2. AI Dev Radar items can open the source article and send context into Growth Lab.
+3. Growth Lab includes a `Notícia -> Post` prompt and can generate/edit content from Radar items.
+4. AI provider integration is configurable and degrades gracefully when API keys are missing.
+5. Carousel Builder renders editable/exportable slides deterministically and can create Instagram Manager drafts.
+
+Plans:
+- [x] 07-01: Brand identity, unified app logo and favicon
+- [x] 07-02: AI Dev Radar actions and Growth Lab handoff
+- [x] 07-03: Growth Lab AI provider integration
+- [x] 07-04: Carousel Builder with deterministic templates and export
+- [x] 07-05: Brand Kit and content memory
+
 ## Backlog
 
 ### Phase 999.1: Fase 3 white-label workspaces multi-cliente (BACKLOG)

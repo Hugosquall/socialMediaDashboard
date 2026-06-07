@@ -47,24 +47,44 @@ type InstagramTokenRow = {
 }
 
 type GrowthExperimentRow = Tables<"growth_experiments">
+type BrandKitRow = Tables<"brand_kit">
+type ContentMemoryRow = Tables<"content_memory">
+
+type GenerateResponse = {
+  text: string
+  provider: string
+  model: string
+}
 
 function normalizeHandle(value: string | null | undefined) {
   const trimmed = value?.trim().replace(/^@/, "")
   return trimmed ? `@${trimmed}` : ""
 }
 
-function buildUserBrief(profile: ProfileRow | null, instagram: InstagramTokenRow | null): Record<GrowthPromptInputKey, string> {
+function buildUserBrief(
+  profile: ProfileRow | null,
+  instagram: InstagramTokenRow | null,
+  brandKit: BrandKitRow | null,
+  memory: ContentMemoryRow[]
+): Record<GrowthPromptInputKey, string> {
   const name = profile?.name?.trim() ?? ""
   const handle = normalizeHandle(instagram?.instagram_username || profile?.handle)
   const bio = profile?.bio?.trim() ?? ""
   const identity = [name, handle].filter(Boolean).join(" ")
+  const memoryContext = memory
+    .slice(0, 5)
+    .map((item) => `${item.type}: ${item.title}${item.body ? ` - ${item.body}` : ""}`)
+    .join("\n")
 
   return {
     ...defaultBriefValues,
     niche: bio || defaultBriefValues.niche,
     audience: "Desenvolvedores, QAs, tech leads, founders e criadores interessados em IA aplicada",
     goal: "Atrair audiencia qualificada para conteudos de IA, desenvolvimento, qualidade e automacao",
-    voice: identity
+    tone: brandKit?.tone || defaultBriefValues.tone,
+    voice: brandKit
+      ? `${brandKit.signature}\nTom: ${brandKit.tone}\nCTA padrao: ${brandKit.default_cta}${memoryContext ? `\nMemoria:\n${memoryContext}` : ""}`
+      : identity
       ? `Voz de ${identity}: especialista tecnico, pragmatico, direto e didatico`
       : defaultBriefValues.voice,
     content: bio,
@@ -96,6 +116,36 @@ function formatDateTime(value: string) {
   }).format(new Date(value))
 }
 
+function buildNewsBriefFromSearch(): Partial<Record<GrowthPromptInputKey, string>> | null {
+  if (typeof window === "undefined") {
+    return null
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  if (params.get("source") !== "news") {
+    return null
+  }
+
+  const title = params.get("title")?.trim() ?? ""
+  const summary = params.get("summary")?.trim() ?? ""
+  const newsSource = params.get("newsSource")?.trim() ?? ""
+  const topic = params.get("topic")?.trim() ?? ""
+  const url = params.get("url")?.trim() ?? ""
+  const sourceLine = [newsSource, topic ? `topico: ${topic}` : "", url].filter(Boolean).join(" | ")
+
+  return {
+    idea: title,
+    content: [
+      summary,
+      sourceLine ? `Fonte: ${sourceLine}` : "",
+    ].filter(Boolean).join("\n\n"),
+    niche: defaultBriefValues.niche,
+    audience: "Desenvolvedores, QAs, tech leads e builders criando produtos com IA",
+    goal: "Transformar uma noticia relevante em conteudo autoral, salvavel e compartilhavel",
+    tone: "Tecnico, claro, pragmatico e opinativo sem hype",
+  }
+}
+
 export default function GrowthLabPage() {
   const [activeId, setActiveId] = useState(growthPrompts[0].id)
   const [input, setInput] = useState<Record<GrowthPromptInputKey, string>>({
@@ -110,6 +160,11 @@ export default function GrowthLabPage() {
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [savingExperiment, setSavingExperiment] = useState(false)
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [aiOutput, setAiOutput] = useState("")
+  const [aiProvider, setAiProvider] = useState<string | null>(null)
+  const [aiModel, setAiModel] = useState<string | null>(null)
+  const [generationError, setGenerationError] = useState<string | null>(null)
 
   const supabase = useMemo(() => createClient(), [])
 
@@ -120,12 +175,55 @@ export default function GrowthLabPage() {
     setInput((prev) => ({ ...prev, [key]: value }))
     setCopied(false)
     setSaveFeedback(null)
+    setGenerationError(null)
   }
 
   async function copyPrompt() {
     await navigator.clipboard.writeText(generatedPrompt)
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1800)
+  }
+
+  async function copyAiOutput() {
+    if (!aiOutput.trim()) return
+    await navigator.clipboard.writeText(aiOutput)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1800)
+  }
+
+  function carouselHref() {
+    const params = new URLSearchParams({
+      source: "growth",
+      title: input.idea || activePrompt.title,
+      content: aiOutput.trim() || generatedPrompt,
+    })
+
+    return `/carousel?${params.toString()}`
+  }
+
+  async function generateWithAi() {
+    setGenerating(true)
+    setGenerationError(null)
+    setSaveFeedback(null)
+    try {
+      const response = await fetch("/api/growth/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: generatedPrompt }),
+      })
+      const data = (await response.json()) as Partial<GenerateResponse> & { error?: string }
+      if (!response.ok || !data.text) {
+        setGenerationError(data.error ?? "Não foi possível gerar conteúdo agora.")
+        return
+      }
+
+      setAiOutput(data.text)
+      setAiProvider(data.provider ?? null)
+      setAiModel(data.model ?? null)
+      setSaveFeedback(`Conteúdo gerado por ${data.provider ?? "IA"}. Revise antes de salvar.`)
+    } finally {
+      setGenerating(false)
+    }
   }
 
   const loadUserBrief = useCallback(async () => {
@@ -135,7 +233,13 @@ export default function GrowthLabPage() {
       if (!user) return
       setUserId(user.id)
 
-      const [{ data: profile }, { data: instagram }, { data: experiments, error: experimentsError }] = await Promise.all([
+      const [
+        { data: profile },
+        { data: instagram },
+        { data: experiments, error: experimentsError },
+        { data: brandKit },
+        { data: memoryRows },
+      ] = await Promise.all([
         supabase
           .from("profiles")
           .select("name, handle, bio")
@@ -152,11 +256,35 @@ export default function GrowthLabPage() {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(5),
+        supabase
+          .from("brand_kit")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("content_memory")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(8),
       ])
 
-      const brief = buildUserBrief(profile, instagram)
+      const brief = buildUserBrief(
+        profile,
+        instagram,
+        brandKit as BrandKitRow | null,
+        (memoryRows ?? []) as ContentMemoryRow[]
+      )
+      const newsBrief = buildNewsBriefFromSearch()
       setUserBrief(brief)
-      setInput((prev) => ({ ...prev, ...brief }))
+      setInput((prev) => ({ ...prev, ...brief, ...(newsBrief ?? {}) }))
+      if (newsBrief) {
+        setActiveId("news-to-post")
+        setSaveFeedback("Notícia carregada do AI Dev Radar.")
+        setAiOutput("")
+        setAiProvider(null)
+        setAiModel(null)
+      }
       if (experimentsError) {
         setHistory([])
         setHistoryError("Histórico indisponível até aplicar a migration `growth_experiments`.")
@@ -184,6 +312,9 @@ export default function GrowthLabPage() {
     const matchingPrompt = growthPrompts.find((prompt) => prompt.id === experiment.prompt_id)
     setActiveId(matchingPrompt?.id ?? growthPrompts[0].id)
     setInput((prev) => ({ ...prev, ...parseExperimentInput(experiment.input) }))
+    setAiOutput(experiment.generated_prompt)
+    setAiProvider(experiment.ai_provider)
+    setAiModel(experiment.ai_model)
     setCopied(false)
     setSaveFeedback("Experimento carregado no brief.")
   }
@@ -204,7 +335,9 @@ export default function GrowthLabPage() {
           prompt_id: activePrompt.id,
           prompt_title: activePrompt.title,
           input: input as unknown as Json,
-          generated_prompt: generatedPrompt,
+          generated_prompt: aiOutput.trim() || generatedPrompt,
+          ai_provider: aiProvider,
+          ai_model: aiModel,
         })
         .select()
         .single()
@@ -245,9 +378,19 @@ export default function GrowthLabPage() {
                 {loadingContext ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
                 {loadingContext ? "Carregando..." : "Usar meus dados"}
               </Button>
+              <Button type="button" variant="outline" size="sm" onClick={generateWithAi} disabled={generating}>
+                {generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {generating ? "Gerando..." : "Gerar com IA"}
+              </Button>
               <Button type="button" variant="outline" size="sm" onClick={saveExperiment} disabled={savingExperiment}>
                 {savingExperiment ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 {savingExperiment ? "Salvando..." : "Salvar experimento"}
+              </Button>
+              <Button asChild size="sm">
+                <Link href={carouselHref()}>
+                  <Plus size={14} />
+                  Criar carrossel
+                </Link>
               </Button>
               <Button asChild size="sm">
                 <Link href="/instagram">
@@ -422,6 +565,34 @@ export default function GrowthLabPage() {
             <pre className="max-h-[620px] overflow-auto rounded-xl border border-[var(--border)] bg-[#10101a] p-4 text-sm leading-relaxed text-[var(--foreground)] whitespace-pre-wrap">
               {generatedPrompt}
             </pre>
+            <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--secondary)]/35 p-4">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--foreground)]">Resultado gerado</p>
+                  <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                    {aiProvider
+                      ? `${aiProvider}${aiModel ? ` · ${aiModel}` : ""}`
+                      : "Use Gerar com IA para criar uma versão editável."}
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={copyAiOutput} disabled={!aiOutput.trim()}>
+                  <Copy size={14} />
+                  Copiar resultado
+                </Button>
+              </div>
+              {generationError && (
+                <p className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                  {generationError}
+                </p>
+              )}
+              <textarea
+                value={aiOutput}
+                onChange={(event) => setAiOutput(event.target.value)}
+                rows={12}
+                className="w-full resize-y rounded-lg border border-[var(--border)] bg-[#10101a] px-3 py-2.5 text-sm leading-relaxed text-[var(--foreground)] outline-none transition-colors placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30"
+                placeholder="O conteúdo gerado aparecerá aqui para revisão antes de salvar."
+              />
+            </div>
           </CardContent>
         </Card>
       </section>

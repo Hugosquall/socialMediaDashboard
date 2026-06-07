@@ -20,6 +20,7 @@ import {
   Wifi,
   WifiOff,
   AlertCircle,
+  Sparkles,
 } from "lucide-react"
 import type { NewsItem } from "@/app/api/news/route"
 
@@ -105,7 +106,23 @@ function SourceDot({ source }: { source: string }) {
   return <span className={`inline-block h-1.5 w-1.5 rounded-full ${colors[idx]}`} />
 }
 
+function buildGrowthLabHref(item: NewsItem): string {
+  const params = new URLSearchParams({
+    source: "news",
+    prompt: "news-to-post",
+    title: item.title,
+    summary: item.summary,
+    newsSource: item.source,
+    topic: item.topic,
+    url: item.link,
+  })
+
+  return `/growth-lab?${params.toString()}`
+}
+
 function TrendingCard({ item }: { item: NewsItem }) {
+  const growthLabHref = buildGrowthLabHref(item)
+
   return (
     <Card className="group relative overflow-hidden border-[var(--primary)]/25 bg-gradient-to-br from-[var(--primary)]/8 to-transparent transition-all hover:border-[var(--primary)]/50 hover:shadow-lg hover:shadow-[var(--primary)]/5">
       <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/3 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
@@ -125,7 +142,7 @@ function TrendingCard({ item }: { item: NewsItem }) {
         <p className="text-xs leading-relaxed text-[var(--muted-foreground)] line-clamp-3">
           {item.summary}
         </p>
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-[10px] text-[var(--muted-foreground)]">
             <SourceDot source={item.source} />
             <span className="font-medium">{item.source}</span>
@@ -133,15 +150,20 @@ function TrendingCard({ item }: { item: NewsItem }) {
             <Clock size={9} />
             <span>{item.publishDate}</span>
           </div>
-          <a
-            href={item.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--secondary)] hover:text-[var(--foreground)]"
-          >
-            Ler
-            <ExternalLink size={9} />
-          </a>
+          <div className="flex items-center gap-1.5">
+            <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-[10px]">
+              <a href={item.link} target="_blank" rel="noopener noreferrer">
+                Abrir
+                <ExternalLink size={9} />
+              </a>
+            </Button>
+            <Button asChild size="sm" className="h-7 px-2 text-[10px]">
+              <a href={growthLabHref}>
+                Criar
+                <Sparkles size={9} />
+              </a>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -149,6 +171,8 @@ function TrendingCard({ item }: { item: NewsItem }) {
 }
 
 function FeedRow({ item }: { item: NewsItem }) {
+  const growthLabHref = buildGrowthLabHref(item)
+
   return (
     <div className="group flex gap-4 py-4 first:pt-0 last:pb-0">
       <div className="min-w-0 flex-1">
@@ -173,6 +197,20 @@ function FeedRow({ item }: { item: NewsItem }) {
         <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-[var(--muted-foreground)]">
           {item.summary}
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="h-7 px-2 text-[10px]">
+            <a href={item.link} target="_blank" rel="noopener noreferrer">
+              Abrir notícia
+              <ExternalLink size={10} />
+            </a>
+          </Button>
+          <Button asChild size="sm" className="h-7 px-2 text-[10px]">
+            <a href={growthLabHref}>
+              Criar conteúdo
+              <Sparkles size={10} />
+            </a>
+          </Button>
+        </div>
       </div>
       <a
         href={item.link}

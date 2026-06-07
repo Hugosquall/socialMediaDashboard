@@ -12,6 +12,117 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_kit: {
+        Row: {
+          accent_color: string
+          created_at: string
+          default_cta: string
+          logo_url: string | null
+          primary_color: string
+          signature: string
+          tone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accent_color?: string
+          created_at?: string
+          default_cta?: string
+          logo_url?: string | null
+          primary_color?: string
+          signature?: string
+          tone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accent_color?: string
+          created_at?: string
+          default_cta?: string
+          logo_url?: string | null
+          primary_color?: string
+          signature?: string
+          tone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      carousel_projects: {
+        Row: {
+          created_at: string
+          id: string
+          source_type: string
+          source_url: string | null
+          status: string
+          theme: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          theme?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          source_type?: string
+          source_url?: string | null
+          status?: string
+          theme?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      carousel_slides: {
+        Row: {
+          body: string
+          created_at: string
+          headline: string
+          id: string
+          position: number
+          project_id: string
+          speaker_notes: string | null
+          updated_at: string
+          user_id: string
+          visual_hint: string | null
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          headline: string
+          id?: string
+          position: number
+          project_id: string
+          speaker_notes?: string | null
+          updated_at?: string
+          user_id: string
+          visual_hint?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          headline?: string
+          id?: string
+          position?: number
+          project_id?: string
+          speaker_notes?: string | null
+          updated_at?: string
+          user_id?: string
+          visual_hint?: string | null
+        }
+        Relationships: []
+      }
       competitor_snapshots: {
         Row: {
           avg_comments: number | null
@@ -111,8 +222,43 @@ export type Database = {
         }
         Relationships: []
       }
+      content_memory: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          source: string | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          source?: string | null
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          source?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       growth_experiments: {
         Row: {
+          ai_model: string | null
+          ai_provider: string | null
           created_at: string
           generated_prompt: string
           id: string
@@ -123,6 +269,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_model?: string | null
+          ai_provider?: string | null
           created_at?: string
           generated_prompt: string
           id?: string
@@ -133,6 +281,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_model?: string | null
+          ai_provider?: string | null
           created_at?: string
           generated_prompt?: string
           id?: string
@@ -350,3 +500,7 @@ export type InstagramToken = Tables<"instagram_tokens">
 export type NotificationRecord = Tables<"notifications">
 export type GrowthExperiment = Tables<"growth_experiments">
 export type CompetitorSnapshot = Tables<"competitor_snapshots">
+export type CarouselProject = Tables<"carousel_projects">
+export type CarouselSlide = Tables<"carousel_slides">
+export type BrandKit = Tables<"brand_kit">
+export type ContentMemory = Tables<"content_memory">

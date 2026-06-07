@@ -1,7 +1,8 @@
 import type { LucideIcon } from "lucide-react"
-import { BadgeCheck, Captions, Eye, Lightbulb, PanelsTopLeft } from "lucide-react"
+import { BadgeCheck, Captions, Eye, Lightbulb, Newspaper, PanelsTopLeft } from "lucide-react"
 
 export type GrowthPromptId =
+  | "news-to-post"
   | "pattern-breaker"
   | "hook-lab"
   | "faceless-formats"
@@ -53,6 +54,32 @@ export const growthPromptFieldLabels: Record<GrowthPromptInputKey, string> = {
 }
 
 export const growthPrompts: GrowthPrompt[] = [
+  {
+    id: "news-to-post",
+    step: "Prompt 0",
+    title: "Noticia para post",
+    summary: "Transforma uma noticia do AI Dev Radar em carrossel, reel textual, legenda e CTA para o seu nicho.",
+    Icon: Newspaper,
+    accent: "text-cyan-400 bg-cyan-500/10 border-cyan-500/25",
+    fields: ["idea", "content", "audience", "tone"],
+    template: (input) => `Atue como estrategista de conteudo tecnico para Instagram.
+
+Transforme a noticia abaixo em um post publicavel para um perfil sobre IA aplicada, desenvolvimento de sistemas com IA, QA e automacao.
+
+Entregue:
+- angulo editorial
+- hook principal
+- carrossel de 7 slides com titulo e texto curto por slide
+- versao reel textual de ate 35 segundos
+- legenda completa
+- CTA
+- observacao sobre como citar a fonte sem parecer apenas repost
+
+Noticia/ideia: ${field(input, "idea")}
+Contexto e fonte: ${field(input, "content")}
+Audiencia: ${field(input, "audience")}
+Tom: ${field(input, "tone")}`,
+  },
   {
     id: "pattern-breaker",
     step: "Prompt 1",

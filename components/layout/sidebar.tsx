@@ -12,9 +12,12 @@ import {
   Settings,
   Bell,
   Sparkles,
+  PanelsTopLeft,
+  SwatchBook,
   ChevronRight,
   LogOut,
 } from "lucide-react"
+import { AppLogo } from "@/components/brand/app-logo"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { brandConfig, getInitials } from "@/lib/brand"
@@ -41,6 +44,16 @@ const navItems = [
     href: "/growth-lab",
     icon: Sparkles,
     badge: "5",
+  },
+  {
+    label: "Carousel Builder",
+    href: "/carousel",
+    icon: PanelsTopLeft,
+  },
+  {
+    label: "Brand Kit",
+    href: "/brand-kit",
+    icon: SwatchBook,
   },
   {
     label: "Content Calendar",
@@ -83,13 +96,7 @@ function SidebarPanel({ pathname, onNavigate, onLogout }: SidebarPanelProps) {
     <>
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-[var(--border)] px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary)] shadow-lg shadow-indigo-500/25">
-          <LayoutDashboard size={16} className="text-white" />
-        </div>
-        <div>
-          <p className="text-sm font-bold leading-none text-[var(--foreground)]">{brandConfig.appName}</p>
-          <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">{brandConfig.tagline}</p>
-        </div>
+        <AppLogo />
       </div>
 
       {/* Nav principal */}

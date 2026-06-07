@@ -6,10 +6,10 @@ status: active
 last_updated: "2026-06-02T12:15:35.518Z"
 progress:
   total_phases: 7
-  completed_phases: 3
-  total_plans: 19
-  completed_plans: 15
-  percent: 79
+  completed_phases: 4
+  total_plans: 21
+  completed_plans: 19
+  percent: 90
 ---
 
 # Project State
@@ -17,25 +17,25 @@ progress:
 ## Status
 
 status: active
-current_phase: 3
-progress: 79%
-plan_of: 3
-plans_total: 4
+current_phase: 7
+progress: 90%
+plan_of: 5
+plans_total: 5
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-05-31)
 
 **Core value:** Você consegue planejar, publicar/sincronizar e analisar o seu Instagram real sem depender de dados fake ou branding herdado do projeto original.
-**Current focus:** Phase 3 — Real Content Manager
+**Current focus:** Phase 7 — Content Intelligence Studio
 
 ## Current Phase
 
-### Phase 3: Real Content Manager
+### Phase 7: Content Intelligence Studio
 
-**Goal:** Upgrade Instagram Manager from basic post CRUD to a practical content workflow with media, preview and publish/sync lifecycle.
+**Goal:** Transform the dashboard into a content intelligence studio that turns AI/software news into Growth Lab outputs, carousels and Instagram Manager drafts.
 
-**Requirements:** CONTENT-01, CONTENT-02, CONTENT-03, CONTENT-04, CONTENT-05, QUAL-01, QUAL-02, QUAL-04
+**Requirements:** BRAND-01, CONTENT-01, CONTENT-02, CONTENT-03, ANALYTICS-01, QUAL-01, QUAL-02, QUAL-04
 
 ## Progress
 
@@ -53,6 +53,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-31)
 - Supabase remote received migration `20260606133500_expand_post_lifecycle_status.sql`.
 - Local validation passed after Phase 3 with `npm run lint`, `npm run build` and `npm run e2e`.
 - Remaining Phase 3 gap: official Meta publish/sync action still depends on ready permissions and a deliberate API flow.
+- Phase 7 Content Intelligence Studio is implemented locally: unified `AppLogo`, `/icon.svg`, AI Dev Radar actions, `Noticia para post` Growth Lab prompt, `/api/growth/generate`, `/carousel`, `/brand-kit`, content memory and draft creation.
+- Supabase remote received migrations `20260607103000_add_ai_metadata_to_growth_experiments.sql`, `20260607104500_create_carousel_builder.sql`, and `20260607110000_create_brand_kit_and_content_memory.sql`.
+- Local validation passed after Phase 7 with `npm run lint`, `npm run build` and `npm run e2e`.
 
 ## Notes
 
@@ -62,6 +65,6 @@ See: `.planning/PROJECT.md` (updated 2026-05-31)
 - Remaining product risks are Meta permission/app-review constraints, long-lived token renewal, and making Growth/Competitor outputs persistent enough for repeated operation.
 
 ---
-*Last updated: 2026-06-06 during autonomous GSD execution*
+*Last updated: 2026-06-07 during Content Intelligence Studio goal execution*
 
-**Active Phase:** 3 (Real Content Manager) — plans 03-01 through 03-03 implemented and validated; 03-04 remains
+**Active Phase:** 7 (Content Intelligence Studio) — all 5 plans implemented and validated locally

@@ -1,4 +1,6 @@
-export type AiProviderName = "openai" | "gemini" | "mock"
+import { generateText } from "ai"
+
+export type AiProviderName = "gateway" | "openai" | "gemini" | "mock"
 
 export type GenerateContentResult = {
   text: string
@@ -28,10 +30,18 @@ type GeminiResponse = {
 
 function configuredProvider(): AiProviderName {
   const provider = process.env.AI_PROVIDER?.trim().toLowerCase()
-  if (provider === "openai" || provider === "gemini" || provider === "mock") {
+  if (
+    provider === "gateway" ||
+    provider === "openai" ||
+    provider === "gemini" ||
+    provider === "mock"
+  ) {
     return provider
   }
 
+  if (process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim()) {
+    return "gateway"
+  }
   if (process.env.OPENAI_API_KEY?.trim()) {
     return "openai"
   }
@@ -102,6 +112,28 @@ export async function generateContent(prompt: string): Promise<GenerateContentRe
 
   if (provider === "mock") {
     return mockGenerate(prompt)
+  }
+
+  if (provider === "gateway") {
+    const hasGatewayCredentials =
+      process.env.AI_GATEWAY_API_KEY?.trim() || process.env.VERCEL_OIDC_TOKEN?.trim()
+    if (!hasGatewayCredentials) {
+      return mockGenerate(prompt)
+    }
+
+    const model = process.env.AI_GATEWAY_MODEL?.trim() || "openai/gpt-5.4"
+    const result = await generateText({
+      model,
+      system: "Responda em português do Brasil. Seja prático, claro e orientado a conteúdo para Instagram técnico.",
+      prompt,
+    })
+
+    const text = result.text.trim()
+    if (!text) {
+      throw new Error("AI Gateway não retornou texto.")
+    }
+
+    return { text, provider, model }
   }
 
   if (provider === "openai") {
